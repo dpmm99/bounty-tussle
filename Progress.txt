@@ -1,0 +1,154 @@
+Tested:
+trying to cheat the command response system
+making valid moves
+attempting tunnel moves before and after obtaining Morph Ball
+missiles, usable when you have them, not usable when you don't, consumption, refills
+health, dying when you run out, game over if everyone dies, being damaged, refills
+beating enemies in 1 hit
+beating enemies in 2 hits
+dodge chain for free movement
+your turn doesn't end if you upgrade
+your turn ends if you recharge
+enemies that can't be hurt with a beam
+successful dodges
+missed attacks
+no duplicated paths in the map
+several enemy varieties
+revealing adjacent tokens
+can't get upgrade from the same station twice
+out-of-combat dodge bonus; in-combat has no bonus
+morph ball dodge bonus
+FalseAlarmMetroids go away when revealed, doesn't end the game right away
+game ends if all Metroids are defeated
+ending your turn by activating an optional station
+enemies that can't be beat without missiles
+charge beam
+end turn early instead of continuing to move
+kill stealing not allowed outside Aggressive mode
+requesting permission to aid in combat, accepting, rejecting
+skip defeated/leaver players' turns
+starting off on a space with an enemy you can't hurt but that is focused on another player (should let you roll movement)
+no duplicate movement options are provided to the user
+player dying doesn't cause other player to get different move options
+[e] map station
+[e] dodging ranged enemies
+[e] dodging ranged enemies while at a station
+[e] ice beam
+[e] saving, respawning
+[e] superheated spaces, Varia suit
+[e] Samus starts with missile in expansion
+[e] enemy-specific attack modifiers, dodge modifiers
+[e] stunned enemies, frozen enemies, stun/freeze wearing off after next round's player attack before player melee dodge
+[e] Weavel always has +2 dodge bonus
+[e] Metroids can only be hurt after freezing in the expansion
+[e] having to dodge multiple enemies in the same turn without any other steps in between
+[e] Noxus freezes enemies if he rolls >= 3
+[e] Spire heals when starting a turn in a superheated area
+[e] Spire can't get Varia suit
+[e] Noxus can't get ice beam
+[e] Sylux can't get charge beam
+[e] Sylux does +2 damage if he rolls >= 4
+[e] Kanden stuns enemies if he rolls >= 6
+[e] Weavel can't get morph ball
+[e] Weavel can always use tunnels
+[a] choosing start locations in Aggressive mode
+[a] can't ask to aid in combat in Aggressive mode
+[a] players can't share spaces in Aggressive mode (except if respawning at a save station)
+[a] destruction of upgrade stations, mandatory ones, no-longer-needed mandatory ones
+[a] kill stealing in Aggressive mode - broken
+
+Not tested: ([e] = expansion, [a] = aggressive option)
+
+
+
+Next steps:
+Done: Make a board editor (at least click to place nodes and right-click to link them)
+Done: Create an expansion board (needs 6 start locations and some wider areas)
+Done: Put in the enemy and station randomizers
+Done: Add proper graphics
+Done: Client and server can start a game and save it in the DB
+Done: Server can load and replay game from DB
+Done: Client can load and replay game from server
+Done: Client can send moves to server and advance the game (and then advance locally according to the server's response, including loading hidden information only once it's meant to be available to players)
+Done: Server caches games loaded from the DB
+Done (only happy path tested): Implement Discord SSO (copy and paste from Burgustar) and validate if requests are for the authenticated player
+Done: Make a landing/login/New Game page, including the "search for players who have logged in before" feature, copied and pasted from Burgustar
+Done: Set client to poll server for updates
+Done (could show a lot more data): Make a "games I'm playing" list on that same page
+Done: Display the events somewhere other than the dev console
+Done: Pop up info on hover over a character during character selection
+Done: Pop up info when you hover your cursor over a map node, especially if there are multiple tokens there (hard to see 'em)
+Done: Put on my website
+Done: Fix how picking multiple different characters in a row doesn't update your UI or local RoundManager
+Done: Get the OAuth token expiration from Discord instead of always setting the session expiration to 1 week
+Done: Persist the user sessions to the database
+Done: Make the text clickable and not just the checkboxes on the New Game page
+Done: Add info buttons to the options on the New Game page
+Done: Add rolled-die-face graphics
+
+Done: game ranking is all piled on top of itself
+Done: There's an issue with first login that throws 403 errors
+Done: Player action validation was failing for new players
+Done: The player marker tokens need to be associated with the characters somewhere
+Done: The enemy damage dealt amount needs to be displayed somewhere
+Done: Missiles shouldn't say they "increased by undefined" when obtaining a missile tank
+Done: Base game map needs a ship when not playing with the Aggressive option
+Done: Ensure sync doesn't stop when it's your turn but asking permission from another player
+Done: Switch movement rolls to 2 D6
+Done: Make health and missile refills 3 if you roll 10, 2 if you roll 6-9, or 1 otherwise instead of 3 if you roll 10, 1 if you roll 7-9, or 0 otherwise
+Done: Stop syncing when the game ends
+Done: Upgrades shouldn't give bounty
+Done: Space pirates should give 2 bounty
+Done: Player should not have to ask to attack another enemy after giving a different player permission to attack that same enemy
+Testing: "Accept Defeat" disappeared because the next player played. And then Accept Defeat was there during other people's turns
+Testing: Your token doesn't disappear on defeat while others keep playing
+Testing: Player cookie should not randomly disappear (may have been due to the bad playerId on first login thing)
+Got out of sync while clicking too often
+Maybe also add +2 to the base movement distance
+Also need another way to refill health, maybe multiple rolls for tougher enemies, but increasing travel speed (to a recharge station) and base amount for refill rolls may be enough
+Someone kept crashing my server entirely
+It's possible to get redirected to wrong URL without the /server
+Dodging to a station doesn't allow activating the station. I knew that, but I decided maybe it should after all (because it takes 2 moves to activate the station after that).
+Player info/stats should be on a separate canvas set to "position: fixed" so you can still see the info while scrolling (plus it can easily exceed the screen width as-is)
+Add keyboard controls and put node numbers in the tooltip
+Make players able to leave the game at any time
+Make players able to reset their turn to the last irreversible step (a roll or reveal)
+Show who's a part of (and playing what character and possibly has what score) each game in the game list + date started
+
+Later:
+Make an instruction manual
+
+Could do:
+Add "Players who saved here:" and "Players who haven't used this upgrade station:" to the info pop-ups
+Show multiple tokens in the same space side-by-side instead of overlapping
+Animate movement of tokens
+Make graphics for the boards, tunnels, and superheated spaces
+Separate "expansion rules" from "include expansion pieces"
+Replace the options text at the top (or at least make them obviously buttons, and for movement, use arrows to indicate the direction; could even highlight the node the action would take place in when you hover over them)
+Replace (most of) the text at the top of the main canvas with token trays; possibly split it out to a separate canvas (can also make character selection a separate canvas if the pop-up info is a separate canvas); add nickname there
+Replace the gameplay log with a canvas (but still allow scrolling and copying)--or at least HTML with images and a highlight for new entries that fades over time
+Add timed confirm button for each automatic action
+Sabotage missile upgrade stations if another one is known to the players in Aggressive Counter-Op; double-check that they get sabotaged even if passed by and had already been used before (must update version and maybe even pass version to RoundManager--probably better to keep old versions in separate files and get the version from the first call to CatchUp)
+Consider restricting ships to be usable only by the player who started there
+Come up with something to make single-player more meaningful
+Include other SSO options (Facebook, Microsoft, Google)
+Make the find users page fancier and more helpful (show Discord avatars, show Discord friends and their online status)
+Indicate user status (show who's playing, including their avatar)
+Allow voting to skip a player's turn if they take a while
+Show multiple options instead of not giving either if a map node has multiple possible actions (e.g., attack or dodge-and-stop, or 3 attacks)
+Allow moving the log window around
+Allow accepting/rejecting of invites
+Allow repositioning of the separate canvases
+Metagame (at least give players "XP" to show how much they've played when displayed in their friends' lists)
+Interactive explanation of the rules (e.g., "why can't I see an attack button?")
+Make a second expansion with more upgrades (long beam, reveal distance increase, teleport station, event cards, gravity suit + water, phazon suit + phazon, that Mother Brain fight I described in the old doc, escape sequence, escape routes that get blocked off as you approach if you roll a die under a certain number, more enemy types, more playable characters like Trace, Gandrayda, Ghor, Rundas, Anthony)
+Build-your-own-board mode (requires converting the board layout/token placement code to a data structure and adding a table for other players to use and polishing the board editor with token placement and drag-to-select and a list of interaction buttons/keys and such)
+"Lawbreaker" option to allow direct PvP combat
+Custom mode (enable all the expansion and option effects at a more granular level and customization of stats and how many of each token can appear)
+Sabotaged upgrade station graphic (I didn't include this because there'd be no need to have that in the board game, but it's a cool sprite 😅)
+
+BGA:
+re-theme it to something not obviously Metroid (has to be public domain)
+use BGA APIs
+
+

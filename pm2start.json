@@ -1,0 +1,9 @@
+{
+  "apps": [
+    {
+      "name": "bountytussle",
+      "script": "npm",
+      "args": "start server.js"
+    }
+  ]
+}

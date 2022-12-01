@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title>Bounty Tussle</title>
+
+    <style>
+    a:visited, a:link, a:hover {
+	    color: #607f40;
+    }
+    a:active {
+	    color: #962;
+    }
+    button {
+        padding: 4px 14px;
+    }
+    input {
+        color: #b50;
+        font-weight: bold;
+    }
+    input[type="number"] {
+        width: 5em;
+    }
+    td {
+        padding: 1px 10px;
+    }
+
+    #discord-login-link {
+        background: #7289DA;
+        color: #fff;
+        border-radius: 3px;
+        display: inline-block;
+        padding: 20px 0;
+        transition: 0.2s ease;
+        user-select: none;
+        font-family: "Montserrat",sans-serif;
+        text-decoration: none;
+        position: relative;
+        left: 40vw;
+        width: 20vw;
+        text-align: center;
+    }
+    #discord-login-link:hover {
+        background: #6B7FC5;
+    }
+
+    #about-bounty-tussle {
+        padding-top: 10px;
+        font-family: sans-serif;
+    }
+    #about-bounty-tussle summary {
+        text-align: center;
+        font-size: 14pt;
+    }
+
+    .pop-button {
+	    border-radius: 50%;
+	    background-color: #59f;
+	    color: #fff;
+	    text-decoration: none;
+	    padding: 0 5px;
+        position: relative;
+    }
+
+    .pop-panel {
+	    position: fixed;
+	    z-index: 2;
+	    background-color: #eee;
+	    border: 1px solid black;
+	    border-radius: 10px;
+	    padding: 8px;
+	    box-sizing: border-box;
+    }
+
+    .pop-backdrop {
+	    position: fixed;
+	    left: 0;
+	    top: 0;
+	    width: 100vw;
+	    height: 100vh;
+	    z-index: 1;
+    }
+    </style>
+</head>
+<body>
+    <script>
+        const serverUrl = window.location.origin == "file://" ? "http://127.0.0.1:3000/" : (window.location.origin + "/bountytussle/server/");
+
+        //This script switches up the page layout and the loaded scripts if you're logged in already.
+        function getCookie(name) {
+            var match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+            if (match) return match[2];
+        }
+
+        function switchToGame() {
+            document.querySelector("#new-game").style = document.querySelector("#my-games").style = document.querySelector("#about-bounty-tussle").style = "display: none";
+            //Start infinitely syncing
+            setInterval(function () {
+                //No sync needed, normally, if *you're* the current player (i.e., all current options are yours)
+                if (!g.gameId || (roundManager?.currentTurnPlayer?.playerUserId == authenticatedPlayerIdOnServer && //If it's your turn
+                    !roundManager?.currentOptions.some(p => p.forPlayer?.tokenId != roundManager?.currentTurnPlayer?.tokenId))) return; //and there are no options available to *other* players
+                if (roundManager?.isGameOver()) return; //Also don't sync if the game has already ended
+
+                requestPartialSyncFromServer();
+            }, 5000);
+        }
+
+        window.addEventListener('DOMContentLoaded', function () {
+            if (getCookie("player")) {
+                authenticatedPlayerIdOnServer = parseInt(getCookie("player"));
+                document.querySelector("#discord-login-link").remove();
+                document.querySelector("#new-game").style = document.querySelector("#my-games").style = "display: visible";
+
+                //List any games you are or have been a part of at the top of the page. Clicking any of them will load the game and hide the My Games and New Game sections.
+                fetch(serverUrl + "mygames", { method: "POST", headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ }) })
+                    .then((response) => response.json())
+                    .then((data) => {
+                        const gameList = document.querySelector("#game-list");
+                        gameList.innerHTML = "";
+
+                        for (let game of data) {
+                            const listItem = document.createElement("li");
+                            const link = document.createElement("a");
+                            listItem.appendChild(link);
+                            link.innerText = "#" + game.gameId;
+                            link.href = "#";
+                            link.onclick = function () {
+                                g.gameId = game.gameId; //Stash it in the GameStarter so we can use it for the auto sync
+                                switchToGame();
+                                requestFullSyncFromServer(game.gameId);
+                                return false;
+                            }
+
+                            gameList.appendChild(listItem);
+                        }
+                    });
+
+                const gameModule = document.createElement('script');
+                gameModule.setAttribute('type', 'text/javascript');
+                gameModule.setAttribute('src', 'main.js');
+                document.head.appendChild(gameModule);
+
+                gameModule.onload = function () {
+                    //Load the client module, which will also create a canvas
+                    const clientModule = document.createElement('script');
+                    clientModule.setAttribute('type', 'text/javascript');
+                    clientModule.setAttribute('src', 'client.js');
+                    document.head.appendChild(clientModule);
+                }
+            }
+        }, false);
+    </script>
+    <a href="login" id="discord-login-link">Log into Bounty Tussle with Discord</a>
+    <div id="my-games" style="display: none">
+        <h2>My Games</h2>
+
+        <ul id="game-list">
+            <li>None</li>
+        </ul>
+    </div>
+    <div id="new-game" style="display: none">
+        <h2>New Game</h2>
+
+        <form>
+            <table>
+                <tr><td><label for="useExpansion">Use expansion:</label> &nbsp;<a class="pop-button" data-content="<ul><li>6 max players</li><li>2 more characters (Weavel, Kanden)</li><li>Characters have unique traits</li><li>Enemies have different stats</li><li>Enemies can be ranged (attack before the player and can attack from an adjacent space)</li><li>2 more upgrades (Ice Beam to freeze foes and Varia Suit to block superheated space damage)</li><li>Players can save at ships or save stations</li><li>Players respawn at their last save location</li></ul>"></a></td><td><input type="checkbox" name="useExpansion" id="useExpansion"></td>
+                <tr><td><label for="useAggressive">Use Aggressive Counter-Op option:</label> &nbsp;<a class="pop-button" data-content="<ul><li>Players cannot occupy the same space, even in passing, except when respawning at a save location</li><li>Players can freely attack enemies in adjacent spaces that another player attacked within the last round</li><li>Optional upgrade stations will be sabotaged after the first use</li></ul>"></a></td><td><input type="checkbox" name="useAggressive" id="useAggressive"></td></tr>
+                <tr><td>Board: &nbsp;</td><td><select name="mapGenId"><option value="0">Base game</option><option value="1" hidden>Tiny expansion test board</option><option value="2" hidden>Empty board</option><option value="3">Expansion</option></select></td></tr>
+            </table>
+            <h2>Invite up to 5 other players:</h2>
+            <table>
+                <thead><tr><th style="width:50%">Uninvited</th><th>Invited</th></tr></thead>
+                <tr><td><input type="text" name="player_search" placeholder="Search to invite..." onchange="javascript:search()" onkeydown="javascript:search()"></td><td rowspan="2" style="border-left: 1px solid black;"><ul id="player-ids"></ul></td></tr>
+                <tr><td><ul id="uninvited"></ul></td></tr>
+            </table>
+        </form>
+        <br />
+        <button onclick="javascript:submit()">Start Game</button>
+    </div>
+    <details id="about-bounty-tussle">
+        <summary>About Bounty Tussle</summary>
+        <p>I (DeProgrammer) very suddenly decided to implement this Metroid board game virtually last Wednesday (2022-11-16; today is 2022-11-26) after I had designed it back in 2013. (I had hoped to carve the tokens out of balsa wood using a rotary tool, but I gave up after breaking <a href="https://imgur.com/M7xo6Zm">the first piece I carved</a>. The base was circular at first...) I call it <b>Bounty Tussle</b>.</p>
+
+        <h3>Things you can do:</h3>
+        <ul>
+            <li>Log in with Discord</li>
+            <li>Find and invite other players by partial Discord ID if they have logged in before</li>
+            <li>Pick a hunter to play as, get upgrades, backtrack, defeat enemies to earn bounty (unless you've got terrible die-rolling luck), and destroy the Metroid and save the galaxy &lt;/Metroid 1 manual quote&gt;</li>
+            <li>Have multiple games going at the same time (e.g., in different browser tabs)</li>
+            <li>Optionally play with the expansion rules and/or the Aggressive Counter-Op option on either of two game boards</li>
+            <li>Play with up to 3 other players in the base game or 5 other players if using the expansion</li>
+            <li>View detailed info by hovering the cursor over a character or space</li>
+            <li>Forget the rules and die in superheated spaces even if you made the game</li>
+            <li>View all the source code (including the <a href="https://aureuscode.com/bountytussle/server.js">server-side code</a>)</li>
+        </ul>
+
+        <h3>Limitations:</h3>
+        <ul>
+            <li>You can only login with a <a href="https://discord.com/">Discord</a> account (and the login page is impressively unimpressive)</li>
+            <li>You don't get a notification for being invited to a game, nor does anything tell you whether your players are present. Hit 'em up on Discord first ;)</li>
+            <li>You can't forfeit a game and allow others to keep playing.</li>
+            <li>You can't undo any moves (I'd like to let you undo anything except random rolls and moves that reveal tokens).</li>
+            <li>There's no friends list, and you can't start a game with players who haven't logged into the server before. There's also no chat or anything.</li>
+            <li>You most likely can't play it on a mobile device without a mouse</li>
+            <li>It's not as graphical as it could be (I'd like a visual token tray for each player at the top, images in the info pop-ups, backgrounds for the boards, and animations for the die rolls, movement, tokens being taken, a highlight that fades away over time when new log entries pop up, etc.).</li>
+            <li>It's had almost zero play-testing (I've only gone through a few games solo to find bugs--at least 57 test cases), so it's probably badly balanced, but hey, the gameplay is pretty random anyway.</li>
+        </ul>
+
+        <h3>Gameplay rules in brief (mostly skipping over combat nuances):</h3>
+        <ul>
+            <li>Both game boards have fixed locations for the tokens, but which enemy/station appears in which space is random</li>
+            <li>Pick your character--this part is a free-for-all depending on whose click gets to the server first</li>
+            <li>Pick your starting location</li>
+            <li>Roll two D6 dice to determine how far you can move (you don't have to move the full distance)</li>
+            <li>Reveal every token that you pass by in an adjacent space</li>
+            <li>Choose whether to attack or try to dodge when in the same space as an enemy</li>
+            <li>Upon defeating an enemy, roll to refill health or missiles if you're not at max capacity.</li>
+            <li>Choose whether to use a Station if you pass through it (some require you to stop, and some don't give you a choice)</li>
+            <li>Get the Morph Ball in order to pass through tunnels (spaces that display a gray circle)</li>
+            <li>You can attack an enemy someone else attacked on their most recent turn, but only with that player's permission.</li>
+            <li>Your game is over if you run out of health, but your rank is only determined by the final bounty tally.</li>
+            <li>Try to get the most bounty before all the Metroids are known to be defeated; Metroids are worth 3, space pirates (Zebesian Pirate or Pirate Trooper) are worth 2, and other enemies are worth 1</li>
+        </ul>
+
+        <h3>Expansion rules in brief:</h3>
+        <ul>
+            <li>There are more tokens of each type (hence, the expansion board will have several more empty spaces if not using the expansion rules)</li>
+            <li>Characters and enemies have more unique stats/traits; as a few examples, Metroids are vulnerable only to missile attacks and only after freezing them, Weavel can traverse tunnels but can't get the Morph Ball, and Spire heals instead of being damaged when starting the turn in a superheated space (pink square) but can't get the Varia Suit.</li>
+            <li>Ranged enemies (War Wasp, Baby Sheegoth, Pirate Trooper) attack as soon as you enter an adjacent space, and if you're actively fighting them, they attack before you.</li>
+            <li>You can save at save stations (including the ships), and if you run out of health, you respawn there instead of being unable to continue playing.</li>
+        </ul>
+
+        <h3>Aggressive Counter-Op rules:</h3>
+        <ul>
+            <li>Your character will sabotage upgrade stations if nobody else absolutely needs them to have a chance at defeating all Metroids. (Actually, now that I think of it, I didn't write the code in a way that allows sabotaging missile stations if there are multiple revealed on the board, even though only one is needed until all players have missiles.)</li>
+            <li>Players cannot occupy or move through the same space as another player.</li>
+            <li>Players can attack each others' target from an adjacent space without permission or retaliation.</li>
+        </ul>
+
+        <p>
+            Also note all the graphics were yanked off the web; enemies were almost all from the <a href="https://metroiddatabase.com/bestiary/">Metroid Database beastiary</a>, while playable characters are from <a href="https://metroidwiki.org">Metroid Wiki</a>. The only original graphic is the <a href="img/SamusToken.png">Samus indicator token</a> I drew with <a href="https://inkscape.org">Inkscape</a> in the style of the other hunters' (ripped) weapon icons. I took the Super Metroid&reg; and Metroid Fusion&reg; sprites from <a href="https://www.spriters-resource.com/snes/smetroid/">The Spriter's Resource</a> and upscaled them with <a href="https://www.maxlaumeister.com/pixel-art-upscaler/">https://www.maxlaumeister.com/pixel-art-upscaler/</a> before squishing them back to roughly 64x64 so they don't look quite as out-of-place with the originally-much-larger art. Other graphics came from PNGWing (some image aggregator). All the concepts, naturally, came from Metroid games are therefore the intellectual property of Nintendo&reg;, and this game is neither affiliated with nor endorsed by Nintendo&reg;. Heck, I even hijacked the Wrecked Ship map to make the expansion board's layout.
+        </p>
+    </details>
+
+    <script>
+        //Scripts for the 'new game' part of the page
+        var searchTimer = null;
+        var lastSearch = "";
+        var searchNumber = 0; //Counter for number of requests sent to /search
+        var searchLoaded = 0; //The highest searchNumber whose response has been received
+        function search() {
+            if (searchTimer) clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => {
+                searchNumber++;
+                let query = encodeURIComponent(document.forms[0].player_search.value.replace(/[^a-z#]/gi, "").substr(0, 37));
+                if (query == lastSearch) return; //Don't search for the same thing that you're already showing the results for
+                let mySearchNumber = searchNumber;
+                fetch(serverUrl + "search?name=" + query, { method: 'GET' }) //37 because Discord usernames are limited to 32, plus the #, plus the discriminator (4 digits)
+                    .then(res => res.json())
+                    .then(res => {
+                        if (mySearchNumber < searchLoaded) return; //Don't bother showing results if the response for another search arrived before this one and this one was an earlier search request
+                        searchLoaded = mySearchNumber;
+                        lastSearch = query;
+
+                        var invitedPlayers = [...document.querySelectorAll("#player-ids [data-id]")].map(p => parseInt(p.dataset.id));
+                        var listItems = [];
+                        for (var x = 0; x < res.length; x++) {
+                            if (invitedPlayers.includes(res[x].id)) continue;
+
+                            var li = document.createElement("li");
+                            var a = document.createElement("a");
+                            a.innerText = res[x].name;
+                            a.dataset.id = res[x].id;
+                            a.href = "#";
+                            a.setAttribute("onclick", "javascript:togglePlayer(this.parentElement)");
+                            li.appendChild(a);
+                            listItems.push(li);
+                        }
+                        document.getElementById("uninvited").replaceChildren(...listItems);
+                    })
+                    .catch(err => alert(err.text || err));
+            }, 250);
+        }
+
+        function togglePlayer(elem) {
+            var newParent = [document.getElementById("player-ids"), document.getElementById("uninvited")].filter(p => p != elem.closest("ul"))[0];
+            if (newParent.id == "player-ids" && newParent.children.length >= 5) {
+                alert("You have already invited the maximum number of players to this game.");
+                return false;
+            }
+            elem.remove();
+            newParent.appendChild(elem);
+            return false;
+        }
+
+        function submit() {
+            var playerIds = [...document.querySelectorAll("#player-ids [data-id]")].map(p => p.dataset.id);
+            switchToGame();
+            createNewGameOnServer({ players: playerIds, useExpansion: document.forms[0].useExpansion.checked, useAggressive: document.forms[0].useAggressive.checked, mapGenId: parseInt(document.forms[0].mapGenId.value) });
+        }
+
+        //Set up the info pop-up buttons
+        for (let pop of [...document.querySelectorAll(".pop-button")]) {
+            pop.innerText = "?";
+            pop.onclick = pop.onmouseenter = (event) => {
+                popOpen(event);
+                event.stopPropagation();
+                return false;
+            }
+
+            //Make sure pressing space and pressing enter result in the same thing as a click
+            pop.onkeydown = (event) => {
+                if (event.key == "Enter" || event.key == " ") {
+                    popOpen(event);
+                    event.preventDefault();
+                }
+            };
+        }
+
+        /**
+         * Create DOM elements to display the content of an info pop-up button.
+         */
+        function popOpen(event) {
+            //Make a pop-panel and pop-backdrop on the body.
+            var backdrop = document.createElement("div");
+            backdrop.classList.add("pop-backdrop");
+
+            var panel = document.createElement("div");
+            panel.classList.add("pop-panel");
+            panel.innerHTML = event.target.dataset.content;
+
+            document.body.appendChild(backdrop);
+            document.body.appendChild(panel);
+
+            panel.onmouseleave = backdrop.onclick = () => {
+                //Remove the checkbox from our tracking list
+                panel.remove();
+                backdrop.remove();
+            };
+
+            //Let the escape key close the pop panel
+            panel.onkeydown = (innerEvent) => {
+                if (innerEvent.key == "Escape") {
+                    backdrop.click();
+                    event.target.focus(); //Put the user's focus back where it was before (for keyboard navigation)
+                }
+            };
+
+            //Make sure the width is no greater than 8x the initial height (for decent proportioning--the final aspect ratio will be much less than 8:1) and no greater than the width of the viewport.
+            panel.style.width = Math.min(panel.offsetHeight * 8, Math.min(document.body.clientWidth, panel.offsetWidth)) + "px";
+            panel.style.left = Math.max(0, Math.min(event.target.offsetLeft - document.body.scrollLeft - 10 /*pop-panel left padding*/, document.body.clientWidth - panel.offsetWidth)) + "px";
+            panel.style.top = Math.max(0, Math.min(event.target.offsetTop - document.body.scrollTop - 10 /*pop-panel top padding*/, document.body.clientHeight - panel.offsetHeight)) + "px";
+        }
+    </script>
+
+    <script>
+        //Hooks up client.js to the server instead of playing the game fully locally
+        function dispatchOrder(command) { return sendOrderToServer(command); }
+        function dispatchCharacterSelection(character) { return sendCharacterSelectionToServer(character); }
+    </script>
+</body>
+</html>

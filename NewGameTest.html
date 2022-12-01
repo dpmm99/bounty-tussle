@@ -1,0 +1,25 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+    <script src="main.js"></script>
+</head>
+<body>
+    <script src="client.js"></script>
+    <script>
+        //This file tests starting a new game on a server and sending character select actions and turn actions to the server and getting the responses back, keeping the local and server copies of the game in sync.
+        //Request for the server to begin a new game with just me
+        createNewGameOnServer({ players: [0, 1], useExpansion: 1, useAggressive: 1, mapGenId: 3 });
+
+        function dispatchOrder(command) {
+            return sendOrderToServer(command);
+        }
+
+        function dispatchCharacterSelection(character) {
+            return sendCharacterSelectionToServer(character);
+        }
+    </script>
+</body>
+</html>

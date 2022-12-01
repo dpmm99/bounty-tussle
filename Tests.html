@@ -1,0 +1,179 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+    <script src="main.js"></script>
+</head>
+<body>
+    <script src="client.js"></script>
+    <script>
+        var roundManager = g.prepareGame(6 /*players*/, 1 /*expansion*/, 0 /*aggressive*/, 3 /*0=original map, 1=expansion test map, 2=empty map for editor, 3=expansion draft map*/);
+
+        function revealAll() {
+            for (var token of roundManager.tokens) {
+                token.isRevealed = true; //Reveal every token on the map to everyone
+                if (token.destroyOnReveal) token.destroy();
+            }
+            g.boardGraphics.drawToCanvas(g, canvas);
+        }
+
+        function dispatchOrder(command) {
+            if (!(command instanceof Object)) command = roundManager.currentOptions[command]; //Allows you to type 0 for the first command or pass in one yourself. The eventual UI would have to send a serializable form of the command.
+            if (!command.forPlayer) command.forPlayer = roundManager.players[0];
+            roundManager.order(command);
+            //Update the graphics
+            g.boardGraphics.drawToCanvas(g, canvas);
+        }
+
+        function dispatchCharacterSelection(character) {
+            roundManager.players[authenticatedPlayerIdInGame].setCharacter(character);
+        }
+
+        function play() {
+            //Fixed characters for testing
+            roundManager.players[0].setCharacter(g.playerTokenTypes.Weavel || g.playerTokenTypes.Samus); //Weavel's an expansion-only character, so revert to Samus if playing without the expansion
+            if (roundManager.players[1]) roundManager.players[1].setCharacter(g.playerTokenTypes.Spire);
+            if (roundManager.players[2]) roundManager.players[2].setCharacter(g.playerTokenTypes.Noxus);
+            if (roundManager.players[3]) roundManager.players[3].setCharacter(g.playerTokenTypes.Sylux);
+            if (roundManager.players[4]) roundManager.players[4].setCharacter(g.playerTokenTypes.Samus);
+            if (roundManager.players[5]) roundManager.players[5].setCharacter(g.playerTokenTypes.Kanden);
+            roundManager.start();
+
+            if (!imagesToLoad) g.boardGraphics.drawToCanvas(g, canvas);
+        }
+
+        function edit() {
+            roundManager.players[0].setCharacter(g.playerTokenTypes.Samus); //Just to avoid errors, set a character for the player.
+            roundManager.currentTurnPlayer = roundManager.players[0]; //And also to prevent errors, directly set it to their turn
+
+            imagesToLoad++;
+            g.boardGraphics.backgroundImage = new Image();
+            g.boardGraphics.backgroundImage.onload = imageLoaded;
+            g.boardGraphics.backgroundImage.src = "ExpansionModeDraft.png";
+
+            function nearestNode(x, y) { //Not using Euclidean distance. :) Expects map coordinates.
+                const nodes = roundManager.map.map(node => { return { distance: Math.abs(node.x - x) + Math.abs(node.y - y), node: node }; });
+                const closest = nodes.reduce((prev, curr) => prev.distance < curr.distance ? prev : curr);
+                return (closest && closest.distance < g.boardGraphics.editorNodeClickDistance) ? closest.node : null;
+            }
+
+            function addNode(x, y) {
+                const node = new MapNode();
+                node.x = x;
+                node.y = y - 100; //That's minus the visual map area offset (defined in BoardGraphics but I don't care to make it accessible at the moment)
+                roundManager.map.push(node);
+                return node;
+            }
+
+            function linkNodes(a, b) {
+                if (a == b) return; //Oops :)
+                if (!a.adjacentNodes.includes(b)) a.adjacentNodes.push(b);
+                if (!b.adjacentNodes.includes(a)) b.adjacentNodes.push(a);
+            }
+
+            function deleteNode(node) { //Remove the node from its neighbors and from the map as a whole
+                for (let other of node.adjacentNodes) { //For each node this one connects to
+                    other.adjacentNodes.splice(other.adjacentNodes.indexOf(node), 1); //Remove this one's reference from that other node
+                }
+                roundManager.map.splice(roundManager.map.indexOf(node), 1); //Make the map itself forget about this node
+            }
+
+            canvas.onclick = function (e) {
+                if (e.button == 0) { //Left click: add a node and, unless holding shift, link with the selected node.
+                    const node = addNode(e.offsetX, e.offsetY);
+                    if (!e.shiftKey && g.boardGraphics.editorSelectedNode) linkNodes(g.boardGraphics.editorSelectedNode, node); //Also link the selected node to the new node, if not holding shift
+                    g.boardGraphics.editorSelectedNode = node;
+                    g.boardGraphics.drawToCanvas(g, canvas);
+                }
+            }
+
+            canvas.oncontextmenu = function (e) {
+                //Right click: select or deselect a node. Also link the previously selected node, if there was one, to the newly selected node. If holding shift, delete the node you clicked instead.
+                const node = nearestNode(e.offsetX, e.offsetY - 100);
+                if (!node) g.boardGraphics.editorSelectedNode = node; //Deselect a node if you didn't click on one just now, regardless of whether you were holding shift.
+                else {
+                    if (!e.shiftKey) {
+                        if (g.boardGraphics.editorSelectedNode) linkNodes(g.boardGraphics.editorSelectedNode, node);
+                        g.boardGraphics.editorSelectedNode = node; //Select a node, if not holding shift. Also link the nodes if one was already selected.
+                    }
+                    else {
+                        deleteNode(node); //Delete that node, if holding shift
+                        if (g.boardGraphics.editorSelectedNode == node) g.boardGraphics.editorSelectedNode = null;
+                    }
+                }
+
+                g.boardGraphics.drawToCanvas(g, canvas);
+                e.stopPropagation(); //Prevent context menu from popping open
+                e.preventDefault();
+                return false;
+            }
+        }
+
+        function nodesToConsole() { //Put the map's nodes into the console in the form of JavaScript statements. Useful for the map editor.
+            const commands = [];
+            for (let i = 0; i < roundManager.map.length; i++) {
+                //Only generate "link" commands for nodes that appeared before this one.
+                let added = false;
+                for (let link of roundManager.map[i].adjacentNodes) {
+                    const j = roundManager.map.indexOf(link);
+                    let otherNodeText;
+                    if (i - j == 1) otherNodeText = "n2";
+                    else if (i - j == 2) otherNodeText = "n3";
+                    else if (i - j == 3) otherNodeText = "n4";
+                    else if (i > j) otherNodeText = "map[" + j + "]"; //if i (the node we're adding now or just added) isn't greater than j (the node we want to link it to), node j doesn't exist yet
+
+                    if (otherNodeText) {
+                        commands.push("link(" + (added ? "n1" : "add()") + ", " + otherNodeText + "); //" + i + "-" + j);
+                        added = true;
+                    }
+                }
+
+                if (!added) commands.push("add(); //" + i); //Either no adjacent nodes (which would be useless) or it's the very first node in the map.
+            }
+
+            //Finally, put the coordinates all in one variable so they're nicely separated from the non-graphical (heh) properties of the graph.
+            commands.push("");
+            commands.push("const coords = [" + roundManager.map.map(node => node.x + "," + node.y).join(", ") + "]");
+
+            console.log(commands.join("\r\n"));
+
+            //Use that with this code:
+            /*(function loadMap() {
+                let map = roundManager.map; //Alias for brevity
+                map.length = 0; //Make sure it's empty when loading a new map
+                let n1, n2, n3, n4; //Last node, second from last, third from last, fourth from last
+
+                function link(a, b, c) {
+                    if (a == b) return;
+                    if (!a.adjacentNodes.includes(b)) a.adjacentNodes.push(b);
+                    if (!b.adjacentNodes.includes(a)) b.adjacentNodes.push(a);
+                }
+                function add(values) {
+                    map.push(Object.assign(new MapNode(), values));
+                    n4 = n3;
+                    n3 = n2;
+                    n2 = n1;
+                    n1 = map[map.length - 1];
+                    return n1;
+                }
+
+                //Generated map code from last time goes here
+
+
+                //Apply graphical coordinates
+                for (let x = 0; x < map.length; x++) {
+                    map[x].x = coords[x * 2];
+                    map[x].y = coords[x * 2 + 1];
+                }
+                //Finally, redraw.
+                g.boardGraphics.drawToCanvas(roundManager, canvas);
+            })()*/
+        }
+
+        //Default behavior upon opening this file: either play or edit.
+        play();
+    </script>
+</body>
+</html>
