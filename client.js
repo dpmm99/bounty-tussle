@@ -22,7 +22,7 @@ function requestFullSyncFromServer(gameId) {
         .then((data) => {
             if (data.text) { console.error(data.text); return; }
             g.gameId ??= data.gameId;
-            roundManager = g.prepareGame(data.tokens.filter(p => p.tokenClass == "Player").length, data.expansion, data.useAggressive, 2, undefined, logGameEventToTextArea); //Reset the RoundManager entirely
+            roundManager = g.prepareGame(data.tokens.filter(p => p.tokenClass == "Player").length, data.expansion, data.optionAggressive, 2, undefined, logGameEventToTextArea); //Reset the RoundManager entirely
             syncFromServer(data);
         });
 }
@@ -158,6 +158,8 @@ function syncFromServer(data) {
             delete node.adjacentNodeIds;
         }
     }
+
+    if (data.fromDecision < nextDecisionToRequest) return; //we already have that game state reproduced locally
 
     //If the response has more map nodes than our local RoundManager, it's the first sync, so replace all tokens and map nodes. Otherwise, search for individual tokens/nodes to update.
     if (data.map && data.map.length > roundManager.map.length) {

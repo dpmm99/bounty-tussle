@@ -149,7 +149,7 @@ function catchUp(game, fromDecision = 0) {
 
 	const newerDecisions = game.roundManager.stepHistory.slice(fromStep); //The client can replay the decisions itself, as long as it has all the recently-revealed-to-players information.
 	const response = {
-		commandIndexes: newerDecisions.filter(p => typeof p.roll != 'number').map(p => p.chosenOptionIndex), rolls: newerDecisions.filter(p => typeof p.roll == 'number').map(p => p.roll), nextDecision: chosenCharacterCount + game.roundManager.currentStep,
+		commandIndexes: newerDecisions.filter(p => typeof p.roll != 'number').map(p => p.chosenOptionIndex), rolls: newerDecisions.filter(p => typeof p.roll == 'number').map(p => p.roll), fromDecision: fromDecision, nextDecision: chosenCharacterCount + game.roundManager.currentStep,
 		started: chosenCharacterCount == game.roundManager.players.length,
 		gameId: game.gameId, expansion: game.gameStarter.expansion, optionAggressive: game.gameStarter.optionAggressive //Client needs to know these inputs for running the rules correctly
 	};
@@ -428,7 +428,8 @@ function startServer() {
 				}
 			} catch (err) {
 				onError(err);
-				throw err; //Dump the stack trace on my server, but don't freeze the client. :)
+				console.error(err);
+				//throw err; //Dump the stack trace on my server, but don't freeze the client. :)
             }
 		}).on('error', onError);
 	});
