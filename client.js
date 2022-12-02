@@ -40,7 +40,9 @@ function logGameEventToTextArea(text) {
         textArea.style.height = "400px";
         textArea.style.top = "125px";
         document.body.appendChild(textArea);
+        if (!text) textArea.style.display = "none"; //Hide it 'til it's needed
     }
+    if (text) textArea.style.display = "";
     //Float to either side, preferring the right side. Note there's just a little gap where the text area won't be able to move left/right if your window is between roughly canvas.clientWidth and canvas.clientWidth + textArea.clientWidth wide (plus padding)
     if (document.documentElement.scrollLeft == 0 || document.documentElement.scrollWidth - document.documentElement.clientWidth - document.documentElement.scrollLeft > textArea.clientWidth / 2) {
         textArea.style.right = "5px";
@@ -189,16 +191,29 @@ function syncFromServer(data) {
     for (let commandIndex of data.commandIndexes || []) roundManager.advance(commandIndex);
     if (typeof data.nextDecision == 'number') nextDecisionToRequest = data.nextDecision;
 
-    if (Object.keys(data).length) g.boardGraphics.drawToCanvas(g, canvas);
+    if (Object.keys(data).length) g.boardGraphics.drawToCanvas(g, canvas, optionsCanvas, playersCanvas);
 }
 
+var optionsCanvas;
+document.body.appendChild(optionsCanvas = document.createElement("canvas"));
+optionsCanvas.style.position = "fixed";
+optionsCanvas.style.left = "2px";
+optionsCanvas.style.top = "2px";
+optionsCanvas.style.display = "none";
+var playersCanvas;
+document.body.appendChild(playersCanvas = document.createElement("canvas"));
+playersCanvas.style.position = "fixed";
+playersCanvas.style.left = "2px";
+playersCanvas.style.top = "46px";
+playersCanvas.style.display = "none";
 var canvas;
 document.body.appendChild(canvas = document.createElement("canvas"));
-canvas.width = 1118;
-canvas.height = 1263; //Simply copied from BoardGraphics
+canvas.style.position = "absolute";
+canvas.style.top = "104px";
+canvas.style.display = "none";
 
 function imageLoaded() {
-    if (--imagesToLoad == 0 && roundManager) g.boardGraphics.drawToCanvas(g, canvas);
+    if (--imagesToLoad == 0 && roundManager) g.boardGraphics.drawToCanvas(g, canvas, optionsCanvas, playersCanvas);
 }
 
 let imagesToLoad = 1; //1 more than the number of tokenImages in case they're all cached--then call imageLoaded right after setting all the images' sources to deduct the extra 1.
@@ -281,32 +296,34 @@ function getTokenInfo(token, info, isCharacterSelection) {
     }
 }
 
-canvas.onmousemove = function (e) {
-    if (g.boardGraphics.canvasClickables.some(clickable => e.offsetX >= clickable.left && e.offsetX <= clickable.right && e.offsetY >= clickable.top && e.offsetY < clickable.bottom)) {
-        canvas.style.cursor = "pointer";
-    } else canvas.style.cursor = "";
+optionsCanvas.onmousemove = playersCanvas.onmousemove = canvas.onmousemove = function (e) {
+    if (g.boardGraphics.canvasClickables.some(clickable => e.offsetX >= clickable.left && e.offsetX <= clickable.right && e.offsetY >= clickable.top && e.offsetY < clickable.bottom && e.target == clickable.canvas)) {
+        e.target.style.cursor = "pointer";
+    } else e.target.style.cursor = "";
 
     //Pop up extra info if the player keeps the mouse still (*near* tokens/a space) for a moment
     hoverInfo.style.display = "none";
     if (mouseHoverInfoTimer) clearTimeout(mouseHoverInfoTimer);
-    const lastX = e.offsetX, lastY = e.offsetY;
+    const lastX = e.offsetX, lastY = e.offsetY, target = e.target;
     mouseHoverInfoTimer = setTimeout(() => {
         if (!roundManager?.players?.length) return; //Has to be an active game
 
-        //Get the map node nearest the cursor
+        //Get the map node nearest the cursor, but only for the main (game board) canvas
         let closestNode = roundManager.map[0];
         let closestDistSqr = Number.MAX_VALUE;
-        for (var node of roundManager.map) {
-            let nodeDistSqr = Math.pow(node.x - lastX, 2) + Math.pow(node.y - lastY + 100, 2); //The +100 is for the map offset in BoardGraphics. I should really make a constant for that now. :P
-            if (nodeDistSqr < closestDistSqr) {
-                closestNode = node;
-                closestDistSqr = nodeDistSqr;
+        if (e.target == canvas) {
+            for (var node of roundManager.map) {
+                let nodeDistSqr = Math.pow(node.x - lastX, 2) + Math.pow(node.y - lastY, 2);
+                if (nodeDistSqr < closestDistSqr) {
+                    closestNode = node;
+                    closestDistSqr = nodeDistSqr;
+                }
             }
         }
 
         //Gather info for the pop-up
         let info = [];
-        let overCanvasClickable = g.boardGraphics.canvasClickables.find(clickable => lastX >= clickable.left && lastX <= clickable.right && lastY >= clickable.top && lastY < clickable.bottom);
+        let overCanvasClickable = g.boardGraphics.canvasClickables.find(clickable => lastX >= clickable.left && lastX <= clickable.right && lastY >= clickable.top && lastY < clickable.bottom && target == clickable.canvas);
         if (roundManager.players.some(p => !p.type && !p.acceptDefeat) && overCanvasClickable) { //Mouse hovered over a character selection image
             let fakePlayer = new Player();
             fakePlayer.setCharacter(g.playerTokenTypes[overCanvasClickable.character]);
@@ -318,6 +335,7 @@ canvas.onmousemove = function (e) {
             if (closestNode.isTunnel) info.push("Tunnel space");
             if (closestNode.isLandingSite) info.push("Landing Site space");
             if (!info.length) info.push("Unremarkable space");
+            info[0] = closestNode.nodeId + ". " + info[0];
             if (!closestNode.containedTokens.length) info.push("Empty");
             for (let token of closestNode.containedTokens) {
                 getTokenInfo(token, info);
@@ -336,10 +354,10 @@ canvas.onmousemove = function (e) {
 
             //Check if it's too far to one side of the existing canvas before positioning it
             hoverInfo.style.left = hoverInfo.style.top = hoverInfo.style.right = hoverInfo.style.bottom = "";
-            if (lastX + 20 + hoverInfo.width < canvas.width) hoverInfo.style.left = lastX + 20 + "px"; //Extra offset because the canvas it's relative to is, itself, offset
+            if (lastX + 20 + hoverInfo.width < target.width) hoverInfo.style.left = lastX + 20 + "px"; //Extra offset because the canvas it's relative to is, itself, offset
             else hoverInfo.style.left = lastX - 20 - hoverInfo.width + "px";
-            if (lastY + 20 + hoverInfo.height < canvas.height) hoverInfo.style.top = lastY + 10 + "px";
-            else hoverInfo.style.top = lastY - 10 - hoverInfo.height + "px";
+            if (lastY + 20 + hoverInfo.height < target.height) hoverInfo.style.top = lastY + 10 + parseInt(target.style.top) + "px";
+            else hoverInfo.style.top = lastY - 10 - hoverInfo.height + parseInt(target.style.top) + "px";
 
             //Render the background
             ctx.fillStyle = "#ffe";
@@ -369,9 +387,9 @@ canvas.onmousemove = function (e) {
 }
 
 //Set up a click handler for that canvas rendered by boardGraphics
-canvas.onclick = function (e) {
+optionsCanvas.onclick = playersCanvas.onclick = canvas.onclick = function (e) {
     for (var clickable of g.boardGraphics.canvasClickables) {
-        if (e.offsetX >= clickable.left && e.offsetX <= clickable.right && e.offsetY >= clickable.top && e.offsetY < clickable.bottom) {
+        if (e.offsetX >= clickable.left && e.offsetX <= clickable.right && e.offsetY >= clickable.top && e.offsetY < clickable.bottom && e.target == clickable.canvas) {
             //Issue command
             if (typeof clickable.commandIndex == "number") dispatchOrder(clickable.commandIndex);
             else if (clickable.character) dispatchCharacterSelection(clickable.character);

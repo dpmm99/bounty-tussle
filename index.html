@@ -95,6 +95,7 @@
 
         function switchToGame() {
             document.querySelector("#new-game").style = document.querySelector("#my-games").style = document.querySelector("#about-bounty-tussle").style = "display: none";
+            optionsCanvas.style.display = playersCanvas.style.display = canvas.style.display = "";
             //Start infinitely syncing
             setInterval(function () {
                 //No sync needed, normally, if *you're* the current player (i.e., all current options are yours)
@@ -358,6 +359,21 @@
         //Hooks up client.js to the server instead of playing the game fully locally
         function dispatchOrder(command) { return sendOrderToServer(command); }
         function dispatchCharacterSelection(character) { return sendCharacterSelectionToServer(character); }
+
+        //Enable players to choose options by pressing keys.
+        var heldKeys = {};
+        document.onkeydown = function (event) {
+            if (!isNaN(parseInt(event.key))) heldKeys[event.key] = true; //If the key is a digit, mark it as held
+            if (event.key == "Escape") heldKeys = {}; //If you press escape, all held keys should be cancelled.
+        }
+        document.onkeyup = function (event) {
+            if (!heldKeys[event.key]) return; //Ignore keystrokes if escape was hit while the key was being held (or they were holding the key when they brought the window into focus).
+
+            if (!isNaN(parseInt(event.key))) { //If the key is a digit
+                let keyAsInt = parseInt(event.key);
+                if (roundManager.currentOptions.length > keyAsInt) dispatchOrder(roundManager.currentOptions[keyAsInt]);
+            }
+        }
     </script>
 </body>
 </html>

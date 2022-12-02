@@ -1590,22 +1590,36 @@ class BoardGraphics {
         ctx.textBaseline = textBaselineWas;
     }
 
-    drawToCanvas(gameStarter, canvas) {
+    drawToCanvas(gameStarter, boardCanvasElement, optionsCanvasElement, playersCanvasElement) {
+        this.canvasClickables = []; //canvasClickables can be on multiple different canvases now, so reset them here rather than in a more specific rendering function
+
+        optionsCanvasElement = this.createCanvasIfMissing(optionsCanvasElement, 1000, 44); //Don't actually know how big it needs to be until I've got options to display, but this is probably safe
+        playersCanvasElement = this.createCanvasIfMissing(playersCanvasElement, 200 * gameStarter.roundManager.players.length + 12, 64); //Could be resizable to tall and narrow instead of short and wide
+        boardCanvasElement = this.createCanvasIfMissing(boardCanvasElement, 1118, 1163);
+
+        this.drawBoardToCanvas(gameStarter, boardCanvasElement.getContext("2d"));
+        this.canvasClickables.filter(p => !p.canvas).forEach(p => p.canvas = boardCanvasElement);
+        this.drawOptionsToCanvas(gameStarter, optionsCanvasElement.getContext("2d"));
+        this.canvasClickables.filter(p => !p.canvas).forEach(p => p.canvas = optionsCanvasElement);
+        this.drawPlayersToCanvas(gameStarter, playersCanvasElement.getContext("2d"));
+        this.canvasClickables.filter(p => !p.canvas).forEach(p => p.canvas = playersCanvasElement);
+    }
+
+    createCanvasIfMissing(canvas, width, height) {
+        if (!canvas) document.body.appendChild(canvas = document.createElement("canvas"));
+        if (!(canvas instanceof HTMLCanvasElement)) throw "Need an HTML5 canvas element";
+        canvas.width = width;
+        canvas.height = height;
+        return canvas;
+    }
+
+    drawBoardToCanvas(gameStarter, canvas) {
         const roundManager = gameStarter.roundManager;
         const self = this;
-        const mapYOffset = 100; //To give room for the players' stats and such at the top
-        if (!canvas) document.body.appendChild(canvas = document.createElement("canvas"));
-        if (canvas instanceof HTMLCanvasElement) {
-            canvas.width = 1118;
-            canvas.height = 1163 + mapYOffset;
-            canvas = canvas.getContext("2d");
-        }
-        if (!(canvas instanceof CanvasRenderingContext2D)) throw "Need a HTML5 canvas";
 
-        if (g.boardGraphics.backgroundImage) canvas.drawImage(g.boardGraphics.backgroundImage, 0, mapYOffset); //Draw the background image before anything
+        if (g.boardGraphics.backgroundImage) canvas.drawImage(g.boardGraphics.backgroundImage, 0, 0); //Draw the background image before anything
 
         //Draw superheating or tunnel information behind the nodes
-        canvas.translate(0, mapYOffset); //Move the map to below the player stats and options
         for (let node of roundManager.map) {
             if (node.isSuperHeated) { //Pink rectangle for super-heated area
                 canvas.fillStyle = "pink";
@@ -1629,63 +1643,14 @@ class BoardGraphics {
                 canvas.stroke();
             }
         }
-        canvas.resetTransform(); //Drawing not-map stuff now
 
-        //Render the player's choices, if any were given and the game hasn't ended
-        let lastTextOptionRight = 0;
-        this.canvasClickables = [];
-        if (!roundManager.isGameOver()) {
-            let optionX = 10;
-            let idx = -1;
-            for (let option of roundManager.currentOptions) {
-                idx++; //should've used a normal for loop :)
-                canvas.fillStyle = "black";
-                if (option.toNode) option.nodeId = option.toNode.nodeId; //I apparently took nodeId out of the options at some point? Not sure what happened there.
-                
-                let commandText = option.command;
-                if (option.command == "attack") {
-                    commandText = "Attack with " + ((roundManager.currentTurnPlayer?.isFirstAttack && option.firstBeamAttackDamageBonus) ? "charged " : "") +
-                    (option instanceof BaseBeamWeapon ? "basic beam" : option instanceof BaseMissile ? "missile" : option.optionalActivation ? "Ice Beam" : "Unknown Weapon");
-                }
-                else if (option.command == "move") commandText = "Move to " + option.nodeId;
-                else if (option.command == "dodgeAndMove") commandText = "Dodge to " + option.nodeId;
-                else if (option.command == "pickStartLocation") commandText = "Start at " + option.nodeId;
-                else if (option.command == "dodgeAndStop") commandText = "Dodge but stay here";
-                else if (option.command == "activateStation") commandText = "Activate station";
-                else if (option.command == "acceptDefeat") commandText = "Accept defeat";
-                else if (option.command == "dodge") commandText = "Dodge";
-                else if (option.command == "healthRefillRoll") commandText = "Refill health";
-                else if (option.command == "missileRefillRoll") commandText = "Refill missiles";
-                else if (option.command == "stop") commandText = "End turn";
-                else if (option.command == "skip") commandText = "Skip and end turn";
-                else if (option.command == "permitCombatAid") commandText = "Accept combat aid";
-                else if (option.command == "rejectCombatAid") commandText = "Reject combat aid";
-
-                canvas.fillText(commandText, optionX, 20);
-                canvas.fillText(idx, optionX, 10);
-
-                //Make that space clickable
-                let optionWidth = canvas.measureText(commandText).width;
-                this.canvasClickables.push({ left: optionX, right: optionX + optionWidth, top: 0, bottom: 30, commandIndex: idx });
-
-                //Also make the actual map clickable if there are no position conflicts
-                const thisOptionNode = typeof option.nodeId == 'number' ? roundManager.map[option.nodeId] : roundManager.currentTurnPlayer?.containingNode;
-                if (roundManager.currentOptions.filter(opt => thisOptionNode == (typeof opt.nodeId == 'number' ? roundManager.map[opt.nodeId] : roundManager.currentTurnPlayer?.containingNode)).length == 1)
-                    this.canvasClickables.push({ left: thisOptionNode.x - 20, right: thisOptionNode.x + 20, top: thisOptionNode.y - 20 + mapYOffset, bottom: thisOptionNode.y + 20 + mapYOffset, commandIndex: idx });
-
-                optionX += optionWidth + 10;
-                lastTextOptionRight = optionX; //Keep this for later use with displaying dice
-            }
-        }
-
-        canvas.translate(0, mapYOffset); //Move the map to below the player stats and options
         //Draw bold lines to make the player's movement options clear
-        for (let option of roundManager.currentOptions.filter(option => typeof option.nodeId == "number" && roundManager.currentTurnPlayer?.containingNode)) {
+        for (let option of roundManager.currentOptions.filter(option => option.toNode && roundManager.currentTurnPlayer?.containingNode)) {
             canvas.lineWidth = 3;
             canvas.strokeStyle = option.command == "move" ? "green" : option.command == "dodgeAndMove" ? "orange" : option.command == "attack" ? "red" : "black";
             canvas.beginPath();
             canvas.lineTo(roundManager.currentTurnPlayer.containingNode.x, roundManager.currentTurnPlayer.containingNode.y);
-            canvas.lineTo(roundManager.map[option.nodeId].x, roundManager.map[option.nodeId].y);
+            canvas.lineTo(option.toNode.x, option.toNode.y);
             canvas.stroke();
         }
 
@@ -1778,55 +1743,8 @@ class BoardGraphics {
             canvas.stroke();
         }
 
-        canvas.resetTransform(); //Drawing not-map stuff now
-        canvas.fillStyle = "black";
-        let turnText = "Turn " + roundManager.currentTurnNumber + ": " + (roundManager.currentTurnPlayer?.type?.name ?? "Character selection");
-        if (roundManager.currentTurnPlayer?.spacesToMove) turnText += "; spaces left to move: " + roundManager.currentTurnPlayer.spacesToMove;
-        canvas.fillText(turnText, 10, 40);
-        //Warning if the options aren't for the player whose turn it is
-        if (roundManager.currentOptions.length && roundManager.currentOptions.every(option => option.forPlayer && option.forPlayer != roundManager.currentTurnPlayer)) {
-            canvas.fillStyle = "red";
-            canvas.fillText("These options are not for the player whose turn it is, but for " + roundManager.currentOptions[0].forPlayer.type.name, 10 + canvas.measureText(turnText).width, 40);
-            canvas.fillStyle = "black";
-        }
-
-        for (let i = 0; i < roundManager.players.length; i++) {
-            const player = roundManager.players[i];
-            let left = i * 200 + 10;
-            let top = 60;
-            if (player == roundManager.currentTurnPlayer) {
-                canvas.strokeStyle = "magenta";
-                canvas.lineWidth = 2;
-                canvas.strokeRect(left - 5, top - 11, 200, 60);
-            }
-
-            canvas.fillText("Character:", left, top);
-            let characterWordWidth = canvas.measureText("Character:").width;
-            drawTokenCentered(player.type?.name + "Token", left + characterWordWidth + 8, top - 4, 0.2); //Draw their save/upgrade marker token so we know who it belongs to
-            canvas.fillText(player.type?.name ?? "(TBD)", left + characterWordWidth + 16, top);
-            top += 11;
-            if (player.type) {
-                canvas.fillText("Health: " + player.health + "/" + player.maxHealth, left, top);
-                top += 11;
-                canvas.fillText("Missiles: " + player.missiles + "/" + player.maxMissiles, left, top);
-                top += 11;
-                canvas.fillText("Bounty: " + player.score, left, top);
-
-                left += 100;
-                top = 60;
-                const upgradesToDisplay = player.upgrades.map(upgrade => upgrade.name).filter(name => name != "MissileTank" && name != "EnergyTank");
-                canvas.fillText("Upgrades:", left, top);
-                top += 11;
-                if (!upgradesToDisplay.length) canvas.fillText("none", left, top);
-                for (let upgrade of upgradesToDisplay) {
-                    canvas.fillText(upgrade, left, top);
-                    top += 11;
-                }
-            }
-        }
-
         //Character selection options if anyone is still picking
-        if (roundManager.players.some(player => !player.acceptedDefeat && !player.type)) { //TODO: This is the first place that I really want to know who is playing on this client
+        if (roundManager.players.some(player => !player.acceptedDefeat && !player.type)) { //TODO: This is the first place that I really want to know who is playing on this client, to highlight their character differently rather than in gray like other already-selected characters
             let nextX = 8;
             for (let character of Object.keys(gameStarter.playerTokenTypes)) {
                 const isAvailable = !roundManager.players.some(player => player.type?.name == character);
@@ -1847,6 +1765,124 @@ class BoardGraphics {
             }
         }
 
+        if (roundManager.isGameOver()) {
+            canvas.font = '20px sans-serif';
+            const gameOverMessage = "This game has ended. Final ranking:";
+            const msgWidth = canvas.measureText(gameOverMessage).width;
+            const left = (canvas.canvas.clientWidth - msgWidth) / 2;
+            canvas.fillStyle = "#eee";
+            canvas.fillRect(left - 10, 20, msgWidth + 20, 35 + 15 * roundManager.players.length);
+            canvas.fillStyle = "#c80";
+            canvas.fillText(gameOverMessage, left, 40);
+            canvas.font = '14px sans-serif';
+            let rank = 1;
+            for (let player of roundManager.getFinalScoresAndRankings()) {
+                canvas.fillText(rank + ". " + player.type.name + ": " + player.score + " (" + player.nickname + ")", left, 45 + rank * 15);
+                rank++;
+            }
+            canvas.font = '10px sans-serif';
+        }
+
+        //Make options clickable on the board
+        if (!roundManager.isGameOver()) {
+            for (let idx = 0; idx < roundManager.currentOptions.length; idx++) {
+                let option = roundManager.currentOptions[idx];
+                if (option.toNode) option.nodeId = option.toNode.nodeId;
+
+                //Also make the actual map clickable if there are no position conflicts
+                //TODO: Show "dodge", "stop", "attack", and whatever other icons you need just above the map node if multiple options are available. Can use drawTokenMini for that if you make actual graphics for the commands.
+                const thisOptionNode = typeof option.nodeId == 'number' ? roundManager.map[option.nodeId] : roundManager.currentTurnPlayer?.containingNode;
+                if (roundManager.currentOptions.filter(opt => thisOptionNode == (typeof opt.nodeId == 'number' ? roundManager.map[opt.nodeId] : roundManager.currentTurnPlayer?.containingNode)).length == 1)
+                    this.canvasClickables.push({ left: thisOptionNode.x - 20, right: thisOptionNode.x + 20, top: thisOptionNode.y - 20, bottom: thisOptionNode.y + 20, commandIndex: idx });
+            }
+        }
+    }
+
+    drawOptionsToCanvas(gameStarter, canvas) {
+        const roundManager = gameStarter.roundManager;
+
+        //Render the player's choices, if any were given and the game hasn't ended
+        let lastTextOptionRight = 0;
+        if (!roundManager.isGameOver()) {
+            let optionX = 10;
+            for (let idx = 0; idx < roundManager.currentOptions.length; idx++) {
+                let option = roundManager.currentOptions[idx];
+                if (option.toNode) option.nodeId = option.toNode.nodeId; //I apparently took nodeId out of the options at some point? Not sure what happened there.
+
+                let commandText = option.command;
+                if (option.command == "attack") {
+                    commandText = "Attack with " + ((roundManager.currentTurnPlayer?.isFirstAttack && option.firstBeamAttackDamageBonus) ? "charged " : "") +
+                        (option instanceof BaseBeamWeapon ? "basic beam" : option instanceof BaseMissile ? "missile" : option.optionalActivation ? "Ice Beam" : "Unknown Weapon");
+                }
+                else if (option.command == "move") commandText = "Move to " + option.nodeId;
+                else if (option.command == "dodgeAndMove") commandText = "Dodge to " + option.nodeId;
+                else if (option.command == "pickStartLocation") commandText = "Start at " + option.nodeId;
+                else if (option.command == "dodgeAndStop") commandText = "Dodge but stay here";
+                else if (option.command == "activateStation") commandText = "Activate station";
+                else if (option.command == "acceptDefeat") commandText = "Accept defeat";
+                else if (option.command == "dodge") commandText = "Dodge";
+                else if (option.command == "healthRefillRoll") commandText = "Refill health";
+                else if (option.command == "missileRefillRoll") commandText = "Refill missiles";
+                else if (option.command == "stop") commandText = "End turn";
+                else if (option.command == "skip") commandText = "Skip and end turn";
+                else if (option.command == "permitCombatAid") commandText = "Accept combat aid";
+                else if (option.command == "rejectCombatAid") commandText = "Reject combat aid";
+
+                //Make that space clickable
+                let optionWidth = canvas.measureText(commandText).width;
+                let clickable = { left: optionX - 2, right: optionX + optionWidth + 4, top: 2, bottom: 26, commandIndex: idx };
+                this.canvasClickables.push(clickable);
+                canvas.fillStyle = "#aef"; //Very light blue
+                canvas.fillRect(clickable.left, clickable.top, clickable.right - clickable.left, clickable.bottom - clickable.top);
+                canvas.strokeStyle = "#4ae"; //Light blue
+                canvas.strokeRect(clickable.left - 1, clickable.top - 1, clickable.right - clickable.left + 2, clickable.bottom - clickable.top + 2); //Draw a light box around it
+
+                canvas.fillStyle = "black";
+                canvas.fillText(commandText, optionX, 23);
+                canvas.fillText(idx, optionX, 12); //The option index--you can press the same number key to perform this action (as long as it's <10)
+
+                //If it's a direction, draw an arrow
+                if ((option.command == "move" || option.command == "dodgeAndMove") && option.toNode && roundManager.currentTurnPlayer?.containingNode) {
+                    canvas.strokeStyle = option.command == "move" ? "green" : "orange"; //move/dodge colors match what shows up on the board
+                    let arrowPointAngle = Math.atan2(option.toNode.y - roundManager.currentTurnPlayer.containingNode.y, option.toNode.x - roundManager.currentTurnPlayer.containingNode.x);
+                    const arrowRadius = 5;
+                    //Draw lines in that direction and that direction+Math.PI times the radius
+                    canvas.translate(optionX + optionWidth - arrowRadius, arrowRadius + 4); //Pad a bit
+                    canvas.beginPath();
+                    canvas.lineTo(-Math.cos(arrowPointAngle) * arrowRadius, -Math.sin(arrowPointAngle) * arrowRadius); //back of arrow
+                    let arrowFrontX = Math.cos(arrowPointAngle) * arrowRadius;
+                    let arrowFrontY = Math.sin(arrowPointAngle) * arrowRadius;
+                    canvas.lineTo(arrowFrontX, arrowFrontY); //front of arrow
+                    canvas.lineTo(arrowFrontX - Math.cos(arrowPointAngle - 0.8) * arrowRadius, arrowFrontY - Math.sin(arrowPointAngle - 0.8) * arrowRadius); //right
+                    canvas.lineTo(arrowFrontX, arrowFrontY); //front again
+                    canvas.lineTo(arrowFrontX - Math.cos(arrowPointAngle + 0.8) * arrowRadius, arrowFrontY - Math.sin(arrowPointAngle + 0.8) * arrowRadius); //left
+                    canvas.stroke();
+                    canvas.resetTransform();
+                }
+
+                optionX += optionWidth + 10;
+                lastTextOptionRight = optionX; //Keep this for later use with displaying dice
+            }
+        }
+
+        let turnText = "Turn " + roundManager.currentTurnNumber + ": " + (roundManager.currentTurnPlayer?.type?.name ?? "Character selection");
+        if (roundManager.currentTurnPlayer?.spacesToMove) turnText += "; spaces left to move: " + roundManager.currentTurnPlayer.spacesToMove;
+
+        canvas.fillStyle = "#aef"; //Very light blue
+        let turnTextWidth = canvas.measureText(turnText).width;
+        canvas.fillRect(8, 30, turnTextWidth + 4, 14);
+        canvas.fillStyle = "black";
+        canvas.fillText(turnText, 10, 40);
+        //Warning if the options aren't for the player whose turn it is
+        if (roundManager.currentOptions.length && roundManager.currentOptions.every(option => option.forPlayer && option.forPlayer != roundManager.currentTurnPlayer)) {
+            let warnText = "These options are not for the player whose turn it is, but for " + roundManager.currentOptions[0].forPlayer.type.name;
+            let warnTextWidth = canvas.measureText(warnText).width;
+            canvas.fillStyle = "#fea"; //Very light orange
+            canvas.fillRect(turnTextWidth + 18, 30, warnTextWidth + 4, 14);
+            canvas.fillStyle = "red";
+            canvas.fillText(warnText, turnTextWidth + 20, 40);
+        }
+
         //The last die roll(s) if there are any
         const lastNonRoll = roundManager.stepHistory.findLastIndex(p => typeof p.roll != "number");
         if (lastNonRoll != -1 && lastNonRoll != roundManager.stepHistory.length - 1) { //If the most recent 'step' was a roll, then display ALL rolls since the last non-roll 'step'
@@ -1859,23 +1895,62 @@ class BoardGraphics {
             }
             canvas.resetTransform();
         }
+    }
 
-        if (roundManager.isGameOver()) {
-            canvas.font = '20px sans-serif';
-            const gameOverMessage = "This game has ended. Final ranking:";
-            const msgWidth = canvas.measureText(gameOverMessage).width;
-            const left = (canvas.canvas.clientWidth - msgWidth) / 2;
-            canvas.fillStyle = "#eee";
-            canvas.fillRect(left - 10, 0, msgWidth + 20, 35 + 15 * roundManager.players.length);
-            canvas.fillStyle = "#c80";
-            canvas.fillText(gameOverMessage, left, 20);
-            canvas.font = '14px sans-serif';
-            let rank = 1;
-            for (let player of roundManager.getFinalScoresAndRankings()) {
-                canvas.fillText(rank + ". " + player.type.name + ": " + player.score + " (" + player.nickname + ")", left, 25 + rank * 15);
-                rank++;
+    drawPlayersToCanvas(gameStarter, canvas) {
+        const roundManager = gameStarter.roundManager;
+        const self = this;
+
+        //TODO: don't copy and paste this function. :P
+        function drawTokenCentered(name, x, y, scale = 1) {
+            if (self.tokenImages[name]) {
+                let w = self.tokenImages[name].width * scale;
+                let h = self.tokenImages[name].height * scale;
+                canvas.drawImage(self.tokenImages[name], x - w / 2, y - h / 2, w, h);
             }
-            canvas.font = '10px sans-serif';
+        }
+
+        canvas.fillStyle = "white";
+        canvas.fillRect(5, 1, 200 * roundManager.players.length, 60);
+        canvas.fillStyle = "black";
+
+        for (let i = 0; i < roundManager.players.length; i++) {
+            const player = roundManager.players[i];
+            let left = i * 200 + 10;
+            let top = 12;
+            if (player == roundManager.currentTurnPlayer) {
+                canvas.strokeStyle = "magenta";
+                canvas.lineWidth = 2;
+                canvas.strokeRect(left - 5, top - 11, 200, 60);
+            }
+
+            if (player.nickname) {
+                canvas.fillText(player.nickname, left, top, 100);
+                top += 11;
+            }
+            canvas.fillText("Character:", left, top);
+            let characterWordWidth = canvas.measureText("Character:").width;
+            drawTokenCentered(player.type?.name + "Token", left + characterWordWidth + 8, top - 4, 0.2); //Draw their save/upgrade marker token so we know who it belongs to
+            canvas.fillText(player.type?.name ?? "(TBD)", left + characterWordWidth + 16, top);
+            top += 11;
+            if (player.type) {
+                canvas.fillText("Health: " + player.health + "/" + player.maxHealth, left, top);
+                top += 11;
+                canvas.fillText("Missiles: " + player.missiles + "/" + player.maxMissiles, left, top);
+                top += 11;
+                canvas.fillText("Bounty: " + player.score, left, top);
+
+                left += 100;
+                top = 12;
+                const upgradesToDisplay = player.upgrades.map(upgrade => upgrade.name).filter(name => name != "MissileTank" && name != "EnergyTank");
+                canvas.fillText("Upgrades:", left, top);
+                top += 11;
+                if (!upgradesToDisplay.length) canvas.fillText("none", left, top);
+                for (let upgrade of upgradesToDisplay) {
+                    canvas.fillText(upgrade, left, top);
+                    top += 11;
+                }
+            }
         }
     }
 }

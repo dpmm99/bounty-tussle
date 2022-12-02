@@ -51,7 +51,7 @@ async function pickCharacter(game, player, character) {
 		game.roundManager.start();
 	}
 
-	const response = await catchUp(game, 0); //TODO: OPTIMIZE: pass in the actual fromDecision number instead of 0
+	const response = await catchUp(game, 0);
 	response.started = undecidedPlayerCount == 0;
 	return response;
 }

@@ -10,13 +10,14 @@
     <script src="client.js"></script>
     <script>
         var roundManager = g.prepareGame(6 /*players*/, 1 /*expansion*/, 0 /*aggressive*/, 3 /*0=original map, 1=expansion test map, 2=empty map for editor, 3=expansion draft map*/);
+        optionsCanvas.style.display = playersCanvas.style.display = canvas.style.display = "";
 
         function revealAll() {
             for (var token of roundManager.tokens) {
                 token.isRevealed = true; //Reveal every token on the map to everyone
                 if (token.destroyOnReveal) token.destroy();
             }
-            g.boardGraphics.drawToCanvas(g, canvas);
+            g.boardGraphics.drawToCanvas(g, canvas, optionsCanvas, playersCanvas);
         }
 
         function dispatchOrder(command) {
@@ -24,7 +25,7 @@
             if (!command.forPlayer) command.forPlayer = roundManager.players[0];
             roundManager.order(command);
             //Update the graphics
-            g.boardGraphics.drawToCanvas(g, canvas);
+            g.boardGraphics.drawToCanvas(g, canvas, optionsCanvas, playersCanvas);
         }
 
         function dispatchCharacterSelection(character) {
@@ -41,7 +42,7 @@
             if (roundManager.players[5]) roundManager.players[5].setCharacter(g.playerTokenTypes.Kanden);
             roundManager.start();
 
-            if (!imagesToLoad) g.boardGraphics.drawToCanvas(g, canvas);
+            if (!imagesToLoad) g.boardGraphics.drawToCanvas(g, canvas, optionsCanvas, playersCanvas);
         }
 
         function edit() {
@@ -85,7 +86,7 @@
                     const node = addNode(e.offsetX, e.offsetY);
                     if (!e.shiftKey && g.boardGraphics.editorSelectedNode) linkNodes(g.boardGraphics.editorSelectedNode, node); //Also link the selected node to the new node, if not holding shift
                     g.boardGraphics.editorSelectedNode = node;
-                    g.boardGraphics.drawToCanvas(g, canvas);
+                    g.boardGraphics.drawToCanvas(g, canvas, optionsCanvas, playersCanvas);
                 }
             }
 
@@ -104,7 +105,7 @@
                     }
                 }
 
-                g.boardGraphics.drawToCanvas(g, canvas);
+                g.boardGraphics.drawToCanvas(g, canvas, optionsCanvas, playersCanvas);
                 e.stopPropagation(); //Prevent context menu from popping open
                 e.preventDefault();
                 return false;
@@ -168,7 +169,7 @@
                     map[x].y = coords[x * 2 + 1];
                 }
                 //Finally, redraw.
-                g.boardGraphics.drawToCanvas(roundManager, canvas);
+                g.boardGraphics.drawToCanvas(roundManager, canvas, optionsCanvas, playersCanvas);
             })()*/
         }
 

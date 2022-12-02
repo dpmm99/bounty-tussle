@@ -100,6 +100,13 @@ Done: Stop syncing when the game ends
 Done: Upgrades shouldn't give bounty
 Done: Space pirates should give 2 bounty
 Done: Player should not have to ask to attack another enemy after giving a different player permission to attack that same enemy
+Done: Add keyboard controls for the actions
+Done: Put map node numbers in the hover info
+Done: Player info/stats should be on a separate canvas set to "position: fixed" so you can still see the info while scrolling (plus it can easily exceed the screen width as-is)
+Done: Options should also be on a separate canvas with "position: fixed"
+Done: Make the player action text obviously buttons
+Done: Put arrows to indicate the direction of movement on the action buttons
+Done: Add nicknames to player info boxes
 Testing: "Accept Defeat" disappeared because the next player played. And then Accept Defeat was there during other people's turns
 Testing: Your token doesn't disappear on defeat while others keep playing
 Testing: Player cookie should not randomly disappear (may have been due to the bad playerId on first login thing)
@@ -109,8 +116,6 @@ Also need another way to refill health, maybe multiple rolls for tougher enemies
 Someone kept crashing my server entirely
 It's possible to get redirected to wrong URL without the /server
 Dodging to a station doesn't allow activating the station. I knew that, but I decided maybe it should after all (because it takes 2 moves to activate the station after that).
-Player info/stats should be on a separate canvas set to "position: fixed" so you can still see the info while scrolling (plus it can easily exceed the screen width as-is)
-Add keyboard controls and put node numbers in the tooltip
 Make players able to leave the game at any time
 Make players able to reset their turn to the last irreversible step (a roll or reveal)
 Show who's a part of (and playing what character and possibly has what score) each game in the game list + date started
@@ -124,8 +129,8 @@ Show multiple tokens in the same space side-by-side instead of overlapping
 Animate movement of tokens
 Make graphics for the boards, tunnels, and superheated spaces
 Separate "expansion rules" from "include expansion pieces"
-Replace the options text at the top (or at least make them obviously buttons, and for movement, use arrows to indicate the direction; could even highlight the node the action would take place in when you hover over them)
-Replace (most of) the text at the top of the main canvas with token trays; possibly split it out to a separate canvas (can also make character selection a separate canvas if the pop-up info is a separate canvas); add nickname there
+Could highlight the node that an action would take place in when you hover over the action button
+Replace (most of) the text in the player info boxes with token trays (can also make character selection a separate canvas if the pop-up info is a separate canvas)
 Replace the gameplay log with a canvas (but still allow scrolling and copying)--or at least HTML with images and a highlight for new entries that fades over time
 Add timed confirm button for each automatic action
 Sabotage missile upgrade stations if another one is known to the players in Aggressive Counter-Op; double-check that they get sabotaged even if passed by and had already been used before (must update version and maybe even pass version to RoundManager--probably better to keep old versions in separate files and get the version from the first call to CatchUp)
