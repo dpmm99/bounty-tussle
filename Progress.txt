@@ -123,11 +123,12 @@ Done: Sabotage missile upgrade stations if another one is known to the players i
 Done: Still had the wrong field name for optionAggressive when starting a new game
 Was able to click the adjacent node to attack when given 2 attack options for a kill steal (shouldn't have been able to click the node due to there being 2 options pointed there)
 Maybe also add +2 to the base movement distance
-Also need another way to refill health, maybe multiple rolls for tougher enemies, but increasing travel speed (to a recharge station) and base amount for refill rolls may be enough
+Also need another way to refill health/missiles, maybe multiple rolls for tougher enemies, but increasing travel speed (to a recharge station) and base amount for refill rolls may be enough
 It's possible to get redirected to wrong URL without the /server
 Make players able to leave the game at any time
 Make players able to reset their turn to the last irreversible step (a roll or reveal)
 Show who's a part of (and playing what character and possibly has what score) each game in the game list + date started
+Add a button for serverless play
 
 Later:
 Make an instruction manual
@@ -137,23 +138,24 @@ Show multiple tokens in the same space side-by-side instead of overlapping
 Animate movement of tokens
 Make graphics for the boards, tunnels, and superheated spaces
 Separate "expansion rules" from "include expansion pieces"
-Could highlight the node that an action would take place in when you hover over the action button
-Replace (most of) the text in the player info boxes with token trays (can also make character selection a separate canvas if the pop-up info is a separate canvas)
+Highlight the node that an action would take place in when you hover over the action button
+Put health and missiles under the character token and health and damage (and maybe even beam invulnerability) under enemy tokens so you don't specifically have to check the info in the hover popup
+Replace (most of) the text in the player info boxes with token trays
 Replace the gameplay log with a canvas (but still allow scrolling and copying)--or at least HTML with images and a highlight for new entries that fades over time
 Add timed confirm button for each automatic action
 Consider restricting ships to be usable only by the player who started there
 Come up with something to make single-player more meaningful
 Include other SSO options (Facebook, Microsoft, Google)
-Make the find users page fancier and more helpful (show Discord avatars, show Discord friends and their online status)
-Indicate user status (show who's playing, including their avatar)
+Make the find users page fancier and more helpful (show Discord avatars, show Discord friends and their online status, show people you recently played with)
+Indicate user status (show who's in the game, including their avatar)
 Allow voting to skip a player's turn if they take a while
 Show multiple options instead of not giving either if a map node has multiple possible actions (e.g., attack or dodge-and-stop, or 3 attacks)
 Allow moving the log window around
 Allow accepting/rejecting of invites
-Allow repositioning of the separate canvases
+Allow repositioning of the separate canvases (and, for example, making the player info vertically oriented if placed at the right side of the screen)
 Metagame (at least give players "XP" to show how much they've played when displayed in their friends' lists)
 Interactive explanation of the rules (e.g., "why can't I see an attack button?")
-Make a second expansion with more upgrades (long beam, reveal distance increase, teleport station, event cards, gravity suit + water, phazon suit + phazon, that Mother Brain fight I described in the old doc, escape sequence, escape routes that get blocked off as you approach if you roll a die under a certain number, more enemy types, more playable characters like Trace, Gandrayda, Ghor, Rundas, Anthony)
+Make a second expansion with more upgrades (long beam, reveal distance increase, teleport station, speed booster that damages enemies if you moved far enough on that turn, event cards, gravity suit + water, phazon suit + phazon, that Mother Brain fight I described in the old doc, escape sequence, escape routes that get blocked off as you approach if you roll a die under a certain number, more enemy types, more playable characters like Trace, Gandrayda, Ghor, Rundas, Anthony)
 Build-your-own-board mode (requires converting the board layout/token placement code to a data structure and adding a table for other players to use and polishing the board editor with token placement and drag-to-select and a list of interaction buttons/keys and such)
 "Lawbreaker" option to allow direct PvP combat
 Custom mode (enable all the expansion and option effects at a more granular level and customization of stats and how many of each token can appear)

@@ -209,60 +209,65 @@
     </div>
     <details id="about-bounty-tussle">
         <summary>About Bounty Tussle</summary>
-        <p>I (DeProgrammer) very suddenly decided to implement this Metroid board game virtually last Wednesday (2022-11-16; today is 2022-11-26) after I had designed it back in 2013. (I had hoped to carve the tokens out of balsa wood using a rotary tool, but I gave up after breaking <a href="https://imgur.com/M7xo6Zm">the first piece I carved</a>. The base was circular at first...) I call it <b>Bounty Tussle</b>.</p>
+        <p>I (DeProgrammer) very suddenly decided to implement this Metroid board game, Bounty Tussle, virtually on 2022-11-16 and released it on 2022-11-26 (with continued updates through at least 2022-12-03), after I had designed it back in 2013. I had intended, initially, to carve the tokens out of balsa wood using a rotary tool, but I gave up after breaking <a href="https://imgur.com/M7xo6Zm">the first piece I carved</a> (the base <i>was</i> circular), which I ended up carving with a knife because the rotary tool barely made a dent in the wood. This implementation is roughly my 20th Metroid fan game, depending on your definitions of "game," "fan game," "Metroid," and "my." :)</p>
 
         <h3>Things you can do:</h3>
         <ul>
-            <li>Log in with Discord</li>
-            <li>Find and invite other players by partial Discord ID if they have logged in before</li>
-            <li>Pick a hunter to play as, get upgrades, backtrack, defeat enemies to earn bounty (unless you've got terrible die-rolling luck), and destroy the Metroid and save the galaxy &lt;/Metroid 1 manual quote&gt;</li>
-            <li>Have multiple games going at the same time (e.g., in different browser tabs)</li>
-            <li>Optionally play with the expansion rules and/or the Aggressive Counter-Op option on either of two game boards</li>
-            <li>Play with up to 3 other players in the base game or 5 other players if using the expansion</li>
-            <li>View detailed info by hovering the cursor over a character or space</li>
-            <li>Forget the rules and die in superheated spaces even if you made the game</li>
-            <li>View all the source code (including the <a href="https://aureuscode.com/bountytussle/server.js">server-side code</a>)</li>
+            <li>Log in with Discord.</li>
+            <li>Find and invite other players by partial Discord ID if they have logged in before.</li>
+            <li>Pick a hunter to play as, get upgrades, backtrack, defeat enemies to earn bounty (unless you've got terrible die-rolling luck), and destroy the Metroid and save the galaxy &lt;/Metroid 1 manual quote&gt;.</li>
+            <li>Control your character by clicking buttons at the top of the screen, by pressing the indicated number key on your keyboard, or by clicking spaces on the board (except when multiple options would put your character in that same space).</li>
+            <li>Have multiple games going at the same time (e.g., in different browser tabs).</li>
+            <li>Optionally play with the expansion rules and/or the Aggressive Counter-Op option on either of two game boards.</li>
+            <li>Play with up to 3 other players in the base game or 5 other players if using the expansion.</li>
+            <li>View detailed info by hovering the cursor over a character (when picking your characters at the start of the game) or any space on the board.</li>
+            <li>Use your web browser's zoom feature to see the board better (the options and player info will stay put as you scroll).</li>
+            <li>Resize the game log if it's in the way.</li>
+            <li>Forget the rules and die in superheated spaces even if you made the game.</li>
+            <li>View all the source code here or on <a href="https://github.com/dpmm99/bounty-tussle">GitHub</a> (including the <a href="https://aureuscode.com/bountytussle/server.js">server-side code</a>).</li>
         </ul>
 
         <h3>Limitations:</h3>
         <ul>
             <li>You can only login with a <a href="https://discord.com/">Discord</a> account (and the login page is impressively unimpressive)</li>
-            <li>You don't get a notification for being invited to a game, nor does anything tell you whether your players are present. Hit 'em up on Discord first ;)</li>
+            <li>The browser tab won't flash or play a sound when you're invited to a game, nor does anything tell you whether your players are present in the game. Hit 'em up on Discord first ;) But the "My Games" list will at least update on its own every few seconds.</li>
             <li>You can't forfeit a game and allow others to keep playing.</li>
             <li>You can't undo any moves (I'd like to let you undo anything except random rolls and moves that reveal tokens).</li>
             <li>There's no friends list, and you can't start a game with players who haven't logged into the server before. There's also no chat or anything.</li>
-            <li>You most likely can't play it on a mobile device without a mouse</li>
+            <li>You most likely can't play it on a mobile device without a mouse.</li>
             <li>It's not as graphical as it could be (I'd like a visual token tray for each player at the top, images in the info pop-ups, backgrounds for the boards, and animations for the die rolls, movement, tokens being taken, a highlight that fades away over time when new log entries pop up, etc.).</li>
-            <li>It's had almost zero play-testing (I've only gone through a few games solo to find bugs--at least 57 test cases), so it's probably badly balanced, but hey, the gameplay is pretty random anyway.</li>
+            <li>It's only had a few rounds of play-testing, so it's probably poorly balanced, but hey, the gameplay is pretty random anyway. (I did make a few rule changes from early play-testing, though: I doubled the movement dice per turn and made health/missile refill rolls guarantee you get at least one health/missile.)</li>
         </ul>
 
         <h3>Gameplay rules in brief (mostly skipping over combat nuances):</h3>
         <ul>
-            <li>Both game boards have fixed locations for the tokens, but which enemy/station appears in which space is random</li>
-            <li>Pick your character--this part is a free-for-all depending on whose click gets to the server first</li>
-            <li>Pick your starting location</li>
-            <li>Roll two D6 dice to determine how far you can move (you don't have to move the full distance)</li>
-            <li>Reveal every token that you pass by in an adjacent space</li>
-            <li>Choose whether to attack or try to dodge when in the same space as an enemy</li>
+            <li>Both game boards have fixed locations for the tokens, but which enemy/station appears in which space is random.</li>
+            <li>Pick your character--this part is a free-for-all depending on whose click gets to the server first.</li>
+            <li>Pick your starting location (a space with a ship on it).</li>
+            <li>Roll two D6 dice to determine how far you can move (you don't have to move the full distance).</li>
+            <li>Reveal every token that you pass by in an adjacent space.</li>
+            <li>Different types of enemies can have vastly different health and damage dealt or can be invulnerable to your starting weapon, so be sure to check the details by hovering your mouse over the enemy before you approach.</li>
+            <li>Choose whether to attack or try to dodge when in the same space as an enemy.</li>
+            <li>Even if you attack an enemy, if you don't defeat it, you have to dodge afterward.</li>
             <li>Upon defeating an enemy, roll to refill health or missiles if you're not at max capacity.</li>
-            <li>Choose whether to use a Station if you pass through it (some require you to stop, and some don't give you a choice)</li>
-            <li>Get the Morph Ball in order to pass through tunnels (spaces that display a gray circle)</li>
             <li>You can attack an enemy someone else attacked on their most recent turn, but only with that player's permission.</li>
+            <li>Choose whether to use a Station if you pass through it (some require you to stop, and some don't give you a choice).</li>
+            <li>Get the Morph Ball in order to pass through tunnels (spaces that display a gray circle).</li>
             <li>Your game is over if you run out of health, but your rank is only determined by the final bounty tally.</li>
-            <li>Try to get the most bounty before all the Metroids are known to be defeated; Metroids are worth 3, space pirates (Zebesian Pirate or Pirate Trooper) are worth 2, and other enemies are worth 1</li>
+            <li>Try to get the most bounty before all the Metroids are known to be defeated; Metroids are worth 3, space pirates (Zebesian Pirate or Pirate Trooper) are worth 2, and other enemies are worth 1.</li>
         </ul>
 
         <h3>Expansion rules in brief:</h3>
         <ul>
-            <li>There are more tokens of each type (hence, the expansion board will have several more empty spaces if not using the expansion rules)</li>
-            <li>Characters and enemies have more unique stats/traits; as a few examples, Metroids are vulnerable only to missile attacks and only after freezing them, Weavel can traverse tunnels but can't get the Morph Ball, and Spire heals instead of being damaged when starting the turn in a superheated space (pink square) but can't get the Varia Suit.</li>
+            <li>There are more tokens of each type (hence, the expansion board will have several more empty spaces if not using the expansion rules).</li>
+            <li>Characters and enemies have more unique stats/traits; as a few examples, Metroids are only vulnerable after you freeze them, Weavel can traverse tunnels but can't get the Morph Ball, and Spire heals instead of being damaged when starting the turn in a superheated space (pink square) but can't get the Varia Suit.</li>
             <li>Ranged enemies (War Wasp, Baby Sheegoth, Pirate Trooper) attack as soon as you enter an adjacent space, and if you're actively fighting them, they attack before you.</li>
             <li>You can save at save stations (including the ships), and if you run out of health, you respawn there instead of being unable to continue playing.</li>
         </ul>
 
         <h3>Aggressive Counter-Op rules:</h3>
         <ul>
-            <li>Your character will sabotage upgrade stations if nobody else absolutely needs them to have a chance at defeating all Metroids. (Actually, now that I think of it, I didn't write the code in a way that allows sabotaging missile stations if there are multiple revealed on the board, even though only one is needed until all players have missiles.)</li>
+            <li>Your character will sabotage upgrade stations if nobody else absolutely needs them to have a chance at defeating all Metroids.</li>
             <li>Players cannot occupy or move through the same space as another player.</li>
             <li>Players can attack each others' target from an adjacent space without permission or retaliation.</li>
         </ul>
