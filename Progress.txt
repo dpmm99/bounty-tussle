@@ -107,13 +107,17 @@ Done: Options should also be on a separate canvas with "position: fixed"
 Done: Make the player action text obviously buttons
 Done: Put arrows to indicate the direction of movement on the action buttons
 Done: Add nicknames to player info boxes
-Testing: "Accept Defeat" disappeared because the next player played. And then Accept Defeat was there during other people's turns
-Testing: Your token doesn't disappear on defeat while others keep playing
-Testing: Player cookie should not randomly disappear (may have been due to the bad playerId on first login thing)
-Got out of sync while clicking too often
+Done: The client said a move was impossible because I had the wrong field name for the aggressive option
+Done: Client could desync when two responses arrived close together
+Done: "Accept Defeat" disappeared because the next player played. And then Accept Defeat was there during other people's turns
+Done: Your token doesn't disappear on defeat while others keep playing
+Done: The game log scrolls to the bottom constantly in Firefox (since the "selection" defaults to the end of the textbox).
+Done: Should disable the controls when it's not your turn (unless they're specifically for you)--prevents another sync bug
+Done: Kill stealing doesn't grant a refill roll
+Done: Player cookie should not randomly disappear (request arrived before the server finished reloading persisted sessions)
+Was able to click the adjacent node to attack when given 2 attack options for a kill steal (shouldn't have been able to click the node due to there being 2 options pointed there)
 Maybe also add +2 to the base movement distance
 Also need another way to refill health, maybe multiple rolls for tougher enemies, but increasing travel speed (to a recharge station) and base amount for refill rolls may be enough
-Someone kept crashing my server entirely
 It's possible to get redirected to wrong URL without the /server
 Dodging to a station doesn't allow activating the station. I knew that, but I decided maybe it should after all (because it takes 2 moves to activate the station after that).
 Make players able to leave the game at any time

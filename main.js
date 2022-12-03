@@ -1512,7 +1512,8 @@ class RoundManager {
             } else {
                 const killStealAttempt = (parameters.toNode || this.currentTurnPlayer.containingNode) != this.currentTurnPlayer.containingNode;
                 this.attackDodgeRefill(parameters, enemy, killStealAttempt);
-                if (killStealAttempt && this.currentTurnNumber == turnNumberWas) this.finishTurn(); //The kill stealer definitely didn't die or anything, but their turn needs to end because they tried to attack
+                //The kill stealer definitely didn't die or anything, but (unless they have a refill to roll for) their turn needs to end because they tried to attack
+                if (killStealAttempt && this.currentTurnNumber == turnNumberWas && !this.currentOptions.length) this.finishTurn();
             }
         }
 

@@ -309,7 +309,7 @@ async function playerSearch(urlObject) {
 	return await db.searchPlayers(name);
 }
 
-function startServer() {
+async function startServer() {
 	const http = require('http');
 	const url = require('url');
 
@@ -434,12 +434,11 @@ function startServer() {
 		}).on('error', onError);
 	});
 
+	console.log("Loading persisted user sessions...");
+	for (let session of await db.loadSessions()) activeSessions[session.id] = { sessionId: session.id, playerId: session.player_id, expires: session.expires }; //Note: I'm not loading the 'nick' or 'discriminator' fields in the sessions. I did in one place, but not sure I need to use them.
+	console.log(Object.keys(activeSessions).length + " persisted user sessions loaded.");
 	server.listen(3001, '127.0.0.1', async () => {
 		console.log(`Bounty Tussle server restarted at ${new Date()}`);
-
-		console.log("Loading persisted user sessions...");
-		for (let session of await db.loadSessions()) activeSessions[session.id] = { sessionId: session.id, playerId: session.player_id, expires: session.expires }; //Note: I'm not loading the 'nick' or 'discriminator' fields in the sessions. I did in one place, but not sure I need to use them.
-		console.log(Object.keys(activeSessions).length + " persisted user sessions loaded.");
 	});
 }
 

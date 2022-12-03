@@ -56,10 +56,12 @@ function logGameEventToTextArea(text) {
         let { selectionStart, selectionEnd, selectionDirection } = textArea;
         let oldLength = textArea.textContent.length; //Because the browser might do weird things...like, for example, Chrome counts \r\n as 1 character in a text area, but obviously not in a string.
         textArea.textContent = text + "\r\n" + textArea.textContent;
-        //Maintain the user's selection
-        textArea.selectionStart = selectionStart + (textArea.textContent.length - oldLength);
-        textArea.selectionEnd = selectionEnd + (textArea.textContent.length - oldLength);
-        textArea.selectionDirection = selectionDirection;
+        //Maintain the user's selection unless they have nothing selected, in which case ensure the log is scrolled to the top
+        if (selectionStart != selectionEnd) {
+            textArea.selectionStart = selectionStart + (textArea.textContent.length - oldLength);
+            textArea.selectionEnd = selectionEnd + (textArea.textContent.length - oldLength);
+            textArea.selectionDirection = selectionDirection;
+        } else textArea.selectionStart = textArea.selectionEnd = 0;
     }
 }
 
@@ -75,6 +77,7 @@ function requestPartialSyncFromServer() {
         });
 }
 
+var pendingActResponse = false; //So we don't send multiple requests too rapidly to the server with no idea what we're doing
 function sendOrderToServer(command) {
     if (!(command instanceof Object)) command = roundManager.currentOptions[command]; //Allows you to type 0 for the first command or pass in one yourself. The eventual UI would have to send a serializable form of the command.
     command = Object.assign({}, command); //Clone it
@@ -86,9 +89,11 @@ function sendOrderToServer(command) {
     delete command.toNode;
     delete command.forPlayer;
 
+    pendingActResponse = true;
     fetch(serverUrl + "act", { method: "POST", headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gameId: g.gameId, command: command }) })
         .then((response) => response.json())
         .then((data) => {
+            pendingActResponse = false;
             if (data.text) { console.error(data.text); return; }
             syncFromServer(data);
         });
@@ -298,8 +303,13 @@ function getTokenInfo(token, info, isCharacterSelection) {
     }
 }
 
+function controlsShouldBeEnabled() {
+    //You should be able to control the game if you're still picking characters or you have some on-screen options, but only if the response from your latest action has arrived, too.
+    return !pendingActResponse && (roundManager.players.some(p => !p.type) || roundManager.currentOptions.some(p => (p.forPlayer?.tokenId ?? roundManager.currentTurnPlayer?.tokenId) == authenticatedPlayerIdInGame));
+}
+
 optionsCanvas.onmousemove = playersCanvas.onmousemove = canvas.onmousemove = function (e) {
-    if (g.boardGraphics.canvasClickables.some(clickable => e.offsetX >= clickable.left && e.offsetX <= clickable.right && e.offsetY >= clickable.top && e.offsetY < clickable.bottom && e.target == clickable.canvas)) {
+    if (controlsShouldBeEnabled() && g.boardGraphics.canvasClickables.some(clickable => e.offsetX >= clickable.left && e.offsetX <= clickable.right && e.offsetY >= clickable.top && e.offsetY < clickable.bottom && e.target == clickable.canvas)) {
         e.target.style.cursor = "pointer";
     } else e.target.style.cursor = "";
 
@@ -390,6 +400,7 @@ optionsCanvas.onmousemove = playersCanvas.onmousemove = canvas.onmousemove = fun
 
 //Set up a click handler for that canvas rendered by boardGraphics
 optionsCanvas.onclick = playersCanvas.onclick = canvas.onclick = function (e) {
+    if (!controlsShouldBeEnabled()) return;
     for (var clickable of g.boardGraphics.canvasClickables) {
         if (e.offsetX >= clickable.left && e.offsetX <= clickable.right && e.offsetY >= clickable.top && e.offsetY < clickable.bottom && e.target == clickable.canvas) {
             //Issue command
