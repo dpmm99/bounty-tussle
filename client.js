@@ -11,7 +11,7 @@ function createNewGameOnServer(parameters) {
         .then((data) => {
             if (data.text) { console.error(data.text); return; }
             g.gameId ??= data.gameId;
-            roundManager = g.prepareGame(data.tokens.filter(p => p.tokenClass == "Player").length, data.expansion, data.useAggressive, 2, undefined, logGameEventToTextArea);
+            roundManager = g.prepareGame(data.tokens.filter(p => p.tokenClass == "Player").length, data.expansion, data.optionAggressive, 2, undefined, logGameEventToTextArea);
             syncFromServer(data);
         });
 }

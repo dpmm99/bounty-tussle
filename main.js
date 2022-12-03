@@ -1044,6 +1044,22 @@ class RoundManager {
     }
 
     /**
+     * Destroy the given station if you're playing with the Aggressive Counter-Operative option, it's an upgrade station, and it meets the criteria to be destroyed, which are:
+     * It's an optional upgrade OR everybody already has this upgrade or an equivalent special trait
+     * @param {any} station
+     */
+    sabotageIfAllowed(station) {
+        if (this.destroyUpgradeRoomAfterUse && station.type.grantsUpgrade) {
+            if (!station.upgrade.guaranteed //Optional upgrade
+                || !this.players.find(player => player.canUseStation(station)) //There's nobody left who needs this upgrade station (which also means there's no point in sabotaging it, but whatever) :)
+                || (station.upgrade.maxMissiles && (this.players.every(p => p.maxMissiles) || this.tokens.some(p => p.isRevealed && p.upgrade?.maxMissiles && p != station)))) { //It's missiles, but everyone has missiles or there's another revealed missile upgrade station on the board
+                station.destroy();
+                this.logGameEvent("Sabotaged the upgrade station.");
+            } else this.logGameEvent("Cannot sabotage this upgrade station until all players have the ability it offers.");
+        }
+    }
+
+    /**
      * The current player activates the station they're at. Returns false if their turn is over.
      */
     activateStation() {
@@ -1069,12 +1085,7 @@ class RoundManager {
             if (station.upgrade.firstBeamAttackDamageBonus && station.upgrade.isBeamAddon) this.logGameEvent("Will now do an additional " + station.upgrade.firstBeamAttackDamageBonus + " damage for the first attack in each fight if using a beam weapon.");
 
             //Destroy it if you're playing with optionAggressive on, unless it's a "guaranteed" upgrade that someone still needs to get
-            if (this.destroyUpgradeRoomAfterUse) {
-                if (!station.upgrade.guaranteed || !this.players.find(player => player.canUseStation(station))) { //TODO: Should be allowed to destroy 1 missile station if there are others on the board, but only if the players KNOW that there are others.
-                    station.destroy();
-                    this.logGameEvent("Sabotaged the upgrade station.");
-                } else this.logGameEvent("Cannot sabotage this upgrade station until all players have the ability it offers.");
-            }
+            this.sabotageIfAllowed(station);
         }
 
         //Stop the player if you need to. Apply other effects not necessarily applicable to upgrade stations.
@@ -1164,12 +1175,7 @@ class RoundManager {
         } //Otherwise they've already moved at least one space, which doesn't preclude them from having to dodge additional enemies (the previous blocks of code), but they can't roll to move again.
 
         const station = this.currentTurnPlayer.getStationPlayerIsAt();
-        if (station && station.upgrade && !this.currentTurnPlayer.canUseStation(station) && this.destroyUpgradeRoomAfterUse) { //Sabotage even if you can't use the station! (If you can use it, the sabotage code is in activateStation() instead.)
-            //Destroy the station if you're playing with optionAggressive on, unless it's a "guaranteed" upgrade that someone still needs to get
-            if (station.upgrade.guaranteed) {
-                if (!this.players.find(player => player.canUseStation(station))) station.destroy();
-            } else station.destroy();
-        }
+        if (station?.upgrade && !this.currentTurnPlayer.canUseStation(station)) this.sabotageIfAllowed(station); //Sabotage even if you can't use the station! (If you can use it, the sabotage code is in activateStation() instead.)
         if (station && this.currentTurnPlayer.canUseStation(station)) {
             if (station.type.optionalStop) {
                 this.currentOptions.push({ command: "activateStation" });
@@ -1492,7 +1498,7 @@ class RoundManager {
             for (let enemy of this.getEnemiesWhoWillAttackPlayer(false)) {
                 if (!this.dodgeRoll(enemy)) return; //You died, so it's the next player's turn.
             }
-            if (parameters.command == "dodgeAndMove") this.move(parameters.toNode); //Move the player token, if you didn't specifically choose to stay put via "dodgeAndStop" //TODO: station activations aren't triggering after this; what's the state?
+            if (parameters.command == "dodgeAndMove") this.move(parameters.toNode); //Move the player token, if you didn't specifically choose to stay put via "dodgeAndStop"
             else this.finishTurn(); //dodgeAndStop means they want to stop!
         }
         else if (parameters.command == "reverse") throw "Not implemented"; //TODO BGA: Reverse to the previous step. You can keep a complete copy of the game state at lastReversibleStep-1 and replay actions (without UI feedback) to make this easy.
