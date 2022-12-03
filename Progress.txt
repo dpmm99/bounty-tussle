@@ -116,12 +116,13 @@ Done: Should disable the controls when it's not your turn (unless they're specif
 Done: Kill stealing doesn't grant a refill roll
 Done: Player cookie should not randomly disappear (request arrived before the server finished reloading persisted sessions)
 Done: Add "Players who saved here:" and "Players who haven't used this upgrade station:" to the info pop-ups
+Done: Make it possible to click through the transparent parts of the actions canvas
+Done: Long-poll for snappier responses during other players' turns, with gradual back-off for errors
+Done: Notify player if a new game started with them in it (at least when looking at the My Games list)
 Was able to click the adjacent node to attack when given 2 attack options for a kill steal (shouldn't have been able to click the node due to there being 2 options pointed there)
-Make it possible to click through the transparent parts of the canvases
 Sabotage missile upgrade stations if another one is known to the players in Aggressive Counter-Op; double-check that they get sabotaged even if passed by and had already been used before (must update version and maybe even pass version to RoundManager--probably better to keep old versions in separate files and get the version from the first call to CatchUp)
 Maybe also add +2 to the base movement distance
 Also need another way to refill health, maybe multiple rolls for tougher enemies, but increasing travel speed (to a recharge station) and base amount for refill rolls may be enough
-Notify player if a new game started with them in it (at least when looking at the My Games list)
 Dodging to a station doesn't allow activating the station. I knew that, but I decided maybe it should after all (because it takes 2 moves to activate the station after that).
 It's possible to get redirected to wrong URL without the /server
 Make players able to leave the game at any time

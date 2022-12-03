@@ -12,12 +12,22 @@ async function query(sql, params) {
     return result;
 }
 
+function serializePlayers(players) {
+    return "," + players.join(",") + ",";
+}
+
+function deserializePlayers(players) {
+    return players.split(",").filter(p => p != "").map(p => parseInt(p));
+}
+
 /**
- * Get all the games that the given player has been a part of.
+ * Get all the games that the given player has been a part of. Returns an array of { id (int), players[] (ints), decisionCount (int) }.
  * @param {int} player ID of the player. This is a game-specific ID.
+ * @param {int} fromGameId Last retrieved game ID. An optimization.
  */
-exports.findGames = async function (player) {
-    return await query("SELECT id FROM bountytussle_games WHERE players LIKE '%," + player + ",%' ORDER BY id DESC");
+exports.findGames = async function (player, fromGameId = 0) {
+    return (await query("SELECT id, players, LENGTH(decisions) decisionCount FROM bountytussle_games WHERE players LIKE '%," + player + ",%' AND id > " + fromGameId + " ORDER BY id DESC"))
+        .map(p => ({ id: p.id, players: deserializePlayers(p.players), decisionCount: p.decisionCount }));
 }
 
 /**
@@ -28,7 +38,7 @@ exports.findGames = async function (player) {
  * @returns The ID of the new game in persistent storage
  */
 exports.insertGame = async function (players, seed, options) {
-    return (await query("INSERT INTO bountytussle_games SET ?", { players: "," + players.join(",") + ",", seed: seed, version: PERSIST_VERSION, options: options.join(",") })).insertId; //Gives the ID of the new game record
+    return (await query("INSERT INTO bountytussle_games SET ?", { players: serializePlayers(players), seed: seed, version: PERSIST_VERSION, options: options.join(",") })).insertId; //Gives the ID of the new game record
     //TODO: This isn't giving the ID despite it working in Burgustar.
 }
 
@@ -57,7 +67,7 @@ exports.reverseGameDecisions = async function (id, count) {
 exports.getGame = async function (id) {
     const response = (await query("SELECT seed, players, decisions, version, options FROM bountytussle_games WHERE id = ?", [id]))[0];
 
-    return { seed: response.seed, players: response.players.split(",").filter(p => p != "").map(p => parseInt(p)), decisions: [...response.decisions].map(p => parseInt(p, 36)), options: response.options.split(",") };
+    return { seed: response.seed, players: deserializePlayers(response.players), decisions: [...response.decisions].map(p => parseInt(p, 36)), options: response.options.split(",") };
 }
 
 /**

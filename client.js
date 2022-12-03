@@ -68,8 +68,8 @@ function logGameEventToTextArea(text) {
 window.addEventListener("scroll", () => logGameEventToTextArea());
 window.addEventListener("resize", () => logGameEventToTextArea());
 
-function requestPartialSyncFromServer() {
-    fetch(serverUrl + "sync", { method: "POST", headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gameId: g.gameId, fromDecision: nextDecisionToRequest }) })
+async function requestPartialSyncFromServer() {
+    await fetch(serverUrl + "sync", { method: "POST", headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gameId: g.gameId, fromDecision: nextDecisionToRequest }), timeout: 25000 /*ms*/ })
         .then((response) => response.json())
         .then((data) => {
             if (data.text) { console.error(data.text); return; }
@@ -319,7 +319,7 @@ function getTokenInfo(token, info, isCharacterSelection) {
 
 function controlsShouldBeEnabled() {
     //You should be able to control the game if you're still picking characters or you have some on-screen options, but only if the response from your latest action has arrived, too.
-    return !pendingActResponse && (roundManager.players.some(p => !p.type) || roundManager.currentOptions.some(p => (p.forPlayer?.tokenId ?? roundManager.currentTurnPlayer?.tokenId) == authenticatedPlayerIdInGame));
+    return !pendingActResponse && (roundManager?.players.some(p => !p.type) || roundManager?.currentOptions.some(p => (p.forPlayer?.tokenId ?? roundManager.currentTurnPlayer?.tokenId) == authenticatedPlayerIdInGame));
 }
 
 function redispatchMouseEventFromTransparentPixel(e) {

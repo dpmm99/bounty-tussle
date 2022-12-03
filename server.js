@@ -109,8 +109,11 @@ async function getGame(id) {
 	return cachedGames.find(p => p.id == id) ?? await cacheExistingGame(id); //TODO: maybe use an object for the cache instead of a list, so it can be keyed by game ID regardless of how big the IDs get
 }
 
-async function listGames(playerId) {
-	return (await db.findGames(playerId)).map(p => ({ gameId: p.id })); //TODO: Would be nice to list the players, their characters, and their most recent scores as well so the list can be a bit more descriptive.
+async function listGames(playerId, fromGameId) {
+	//TODO: Would be nice to list the players, their characters, and their most recent scores as well so the list can be a bit more descriptive.
+	let lastCachedGame = cachedGames.reduce((a, b) => Math.max(a, b), 0); //Looking for the most recently created game (assuming one has been created since server startup) so we don't have to optimize by getting the last game ID from the DB, though we should still do that
+	let games = (await db.findGames(playerId, fromGameId)).map(p => ({ gameId: p.id, pickingCharacters: p.decisionCount < p.players.length })); //At least indicates if people are still picking their characters now (decisionCount < player count)
+	return { games: games, nextFromGameId: lastCachedGame || fromGameId };
 }
 
 /**
@@ -376,7 +379,10 @@ async function startServer() {
 
 				} else if (lowercasePath.endsWith("/mygames")) {
 					if (!loginRedirect()) return; //Must be logged in to see your own games
-					return json(await listGames(player.playerId));
+
+					let fromGameId = parseInt(requestBodyObj.fromGameId); //Optimization for repeat calls from the same client when they haven't refreshed the page
+					if (isNaN(fromGameId)) fromGameId = 0;
+					return json(await listGames(player.playerId, fromGameId));
 
 				//Game functions; these require the player to be authenticated already
 				} else if (lowercasePath.endsWith("/newgame")) { //Start a new game for the given players
@@ -401,8 +407,15 @@ async function startServer() {
 
 					const game = await getGame(requestBodyObj.gameId);
 					if (game.players.indexOf(player.playerId) == -1) return forbid(); //Can't view others' games
-					return json(catchUp(game, requestBodyObj.fromDecision));
 
+					let msBetweenPolls = 50;
+					let allowedWaits = 15 /*seconds*/ * 1000 /*ms/sec*/ / msBetweenPolls;
+					while (allowedWaits-- > 0) {
+						let tentativeResponse = catchUp(game, requestBodyObj.fromDecision); //Assumes the game won't be dropped from and added back to the cache in this time frame, but if that happens, the user just won't get a response until the next sync call.
+						if (tentativeResponse.tokens) return json(tentativeResponse);
+						await main.sleep(msBetweenPolls);
+					}
+					return json({});
 				} else if (lowercasePath.endsWith("/act")) { //The player performs an action
 					if (!loginRedirect()) return;
 

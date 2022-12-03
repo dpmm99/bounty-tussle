@@ -1609,7 +1609,7 @@ class BoardGraphics {
 
         this.drawBoardToCanvas(gameStarter, boardCanvasElement.getContext("2d"));
         this.canvasClickables.filter(p => !p.canvas).forEach(p => p.canvas = boardCanvasElement);
-        this.drawOptionsToCanvas(gameStarter, optionsCanvasElement.getContext("2d"));
+        this.drawOptionsToCanvas(gameStarter, optionsCanvasElement.getContext("2d", { willReadFrequently: true })); //Optimized for checking for transparent pixels during mouseover/pointerover events
         this.canvasClickables.filter(p => !p.canvas).forEach(p => p.canvas = optionsCanvasElement);
         this.drawPlayersToCanvas(gameStarter, playersCanvasElement.getContext("2d"));
         this.canvasClickables.filter(p => !p.canvas).forEach(p => p.canvas = playersCanvasElement);
@@ -2321,6 +2321,10 @@ class BaseMissile {
     }
 }
 
+async function sleep(ms) {
+    return new Promise(p => setTimeout(p, ms)).catch(() => { });
+}
+
 function repeat(obj, count) { //Doesn't clone; just repeats the same object the given number of times.
     const objects = [];
     for (let i = 0; i < count; i++) objects.push(obj);
@@ -2604,4 +2608,5 @@ class OptionAggressiveUpgradeTokenTypes {
     exports.Enemy = Enemy;
     exports.Station = Station;
     exports.MapNode = MapNode;
+    exports.sleep = sleep; //Just a shared utility function
 }

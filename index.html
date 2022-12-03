@@ -97,14 +97,31 @@
             document.querySelector("#new-game").style = document.querySelector("#my-games").style = document.querySelector("#about-bounty-tussle").style = "display: none";
             optionsCanvas.style.display = playersCanvas.style.display = canvas.style.display = "";
             //Start infinitely syncing
-            setInterval(function () {
-                //No sync needed, normally, if *you're* the current player (i.e., all current options are yours)
-                if (!g.gameId || (roundManager?.currentTurnPlayer?.playerUserId == authenticatedPlayerIdOnServer && //If it's your turn
-                    !roundManager?.currentOptions.some(p => p.forPlayer?.tokenId != roundManager?.currentTurnPlayer?.tokenId))) return; //and there are no options available to *other* players
-                if (roundManager?.isGameOver()) return; //Also don't sync if the game has already ended
+            let syncStarter = setInterval(async function () {
+                if (g.gameId) clearInterval(syncStarter); //Ready to start syncing
 
-                requestPartialSyncFromServer();
-            }, 5000);
+                const onErrorWaitMinMs = 1000, onErrorWaitMaxMs = 15000;
+                let onErrorWaitMs = onErrorWaitMinMs;
+                while (g.gameId) {
+                    try {
+                        //No sync needed, normally, if *you're* the current player (i.e., all current options are yours)
+                        if (roundManager?.currentTurnPlayer?.playerUserId == authenticatedPlayerIdOnServer && //If it's your turn
+                            !roundManager?.currentOptions.some(p => p.forPlayer?.tokenId != null && p.forPlayer?.tokenId != roundManager?.currentTurnPlayer?.tokenId)) { //and there are no options available to *other* players
+                            await sleep(1000); //Wait a second (though it could just pause until a response is received from a call to 'act' or 'pickCharacter')
+                            continue;
+                        }
+                        if (roundManager?.isGameOver()) return; //Also stop syncing entirely if the game has already ended
+
+                        await requestPartialSyncFromServer();
+                        if (!roundManager.currentTurnPlayer) await sleep(2000); //Response is always immediate if the game hasn't started yet, so wait a little extra. //TODO: Could send current character selections back to the server and have it only send a response when they change, making this case a long-poll like all others
+                        onErrorWaitMs = onErrorWaitMinMs; //Reset the on-error wait timer
+                    } catch {
+                        //Wait an increasing amount of time between sync requests if an error occurs
+                        onErrorWaitMs = Math.min(onErrorWaitMs * 2, onErrorWaitMaxMs);
+                        await sleep(onErrorWaitMs);
+                    }
+                }
+            }, 100);
         }
 
         window.addEventListener('DOMContentLoaded', function () {
@@ -114,28 +131,39 @@
                 document.querySelector("#new-game").style = document.querySelector("#my-games").style = "display: visible";
 
                 //List any games you are or have been a part of at the top of the page. Clicking any of them will load the game and hide the My Games and New Game sections.
-                fetch(serverUrl + "mygames", { method: "POST", headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ }) })
-                    .then((response) => response.json())
-                    .then((data) => {
-                        const gameList = document.querySelector("#game-list");
-                        gameList.innerHTML = "";
+                let lastListedGameId = 0;
+                async function syncGameList() {
+                    if (document.querySelector("#my-games").style.display == "none") return; //Stop syncing once the My Games section is hidden
+                    await fetch(serverUrl + "mygames", { method: "POST", headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fromGameId: lastListedGameId }) }) //TODO: Could long poll for this like for 'sync', but I'd likely just check the cache, not the DB, for new games
+                        .then((response) => response.json())
+                        .then((data) => {
+                            if (data.text) { console.error(data.text); return; }
 
-                        for (let game of data) {
-                            const listItem = document.createElement("li");
-                            const link = document.createElement("a");
-                            listItem.appendChild(link);
-                            link.innerText = "#" + game.gameId;
-                            link.href = "#";
-                            link.onclick = function () {
-                                g.gameId = game.gameId; //Stash it in the GameStarter so we can use it for the auto sync
-                                switchToGame();
-                                requestFullSyncFromServer(game.gameId);
-                                return false;
+                            const gameList = document.querySelector("#game-list");
+                            if (!lastListedGameId) gameList.innerHTML = data.games.length ? "" : "<li>None</li>"; //Only if no games were listed already should we reset the element contents entirely
+
+                            if (data.nextFromGameId) lastListedGameId = Math.max(lastListedGameId, data.nextFromGameId);
+
+                            for (let game of data.games.sort((a, b) => a.gameId - b.gameId)) { //Sort ascending but insert each as the first child of the game list
+                                const listItem = document.createElement("li");
+                                const link = document.createElement("a");
+                                listItem.appendChild(link);
+                                link.innerText = "#" + game.gameId + (game.pickingCharacters ? " (In character selection)" : "");
+                                link.href = "#";
+                                link.onclick = function () {
+                                    g.gameId = game.gameId; //Stash it in the GameStarter so we can use it for the auto sync
+                                    switchToGame();
+                                    requestFullSyncFromServer(game.gameId);
+                                    return false;
+                                }
+
+                                gameList.insertAdjacentElement('afterbegin', listItem);
+                                lastListedGameId = Math.max(lastListedGameId, game.gameId); //Allows future calls to 'getgames' to return less data
                             }
-
-                            gameList.appendChild(listItem);
-                        }
-                    });
+                        });
+                    setTimeout(syncGameList, 10000);
+                }
+                syncGameList(); //A Promise with no await--it's fine for this to happen at the same time as loading the below modules. Also, this starts the syncing, which doesn't stop until the game list ceases to be displayed.
 
                 const gameModule = document.createElement('script');
                 gameModule.setAttribute('type', 'text/javascript');
@@ -157,7 +185,7 @@
         <h2>My Games</h2>
 
         <ul id="game-list">
-            <li>None</li>
+            <li>Loading...</li>
         </ul>
     </div>
     <div id="new-game" style="display: none">
