@@ -935,6 +935,14 @@ class RoundManager {
         return node.containedTokens.find(token => token instanceof Enemy);
     }
 
+    getPlayersWhoSavedAtStation(station) {
+        return this.players.filter(p => this.playersCanRevive && p.nodeLastSavedAt == station.containingNode);
+    }
+
+    getPlayersWhoCanUseStation(station) {
+        return this.players.filter(p => p.canUseStation(station));
+    }
+
     /**
      * Check if this player has finished their fight (by being defeated, defeating the enemy, or leaving). If so, clear the player's inCombatWith and the enemy's targetedPlayer and reset isFirstAttack to true.
      */
@@ -1576,7 +1584,8 @@ class BoardGraphics {
         ctx.beginPath();
         ctx.lineTo(32, 0);
         ctx.lineTo(64, 52);
-        ctx.lineTo(32, 64);
+        ctx.lineTo(48, 64);
+        ctx.lineTo(16, 64);
         ctx.lineTo(0, 52);
         ctx.lineTo(32, 0);
         ctx.fill();

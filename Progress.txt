@@ -115,11 +115,15 @@ Done: The game log scrolls to the bottom constantly in Firefox (since the "selec
 Done: Should disable the controls when it's not your turn (unless they're specifically for you)--prevents another sync bug
 Done: Kill stealing doesn't grant a refill roll
 Done: Player cookie should not randomly disappear (request arrived before the server finished reloading persisted sessions)
+Done: Add "Players who saved here:" and "Players who haven't used this upgrade station:" to the info pop-ups
 Was able to click the adjacent node to attack when given 2 attack options for a kill steal (shouldn't have been able to click the node due to there being 2 options pointed there)
+Make it possible to click through the transparent parts of the canvases
+Sabotage missile upgrade stations if another one is known to the players in Aggressive Counter-Op; double-check that they get sabotaged even if passed by and had already been used before (must update version and maybe even pass version to RoundManager--probably better to keep old versions in separate files and get the version from the first call to CatchUp)
 Maybe also add +2 to the base movement distance
 Also need another way to refill health, maybe multiple rolls for tougher enemies, but increasing travel speed (to a recharge station) and base amount for refill rolls may be enough
-It's possible to get redirected to wrong URL without the /server
+Notify player if a new game started with them in it (at least when looking at the My Games list)
 Dodging to a station doesn't allow activating the station. I knew that, but I decided maybe it should after all (because it takes 2 moves to activate the station after that).
+It's possible to get redirected to wrong URL without the /server
 Make players able to leave the game at any time
 Make players able to reset their turn to the last irreversible step (a roll or reveal)
 Show who's a part of (and playing what character and possibly has what score) each game in the game list + date started
@@ -128,7 +132,6 @@ Later:
 Make an instruction manual
 
 Could do:
-Add "Players who saved here:" and "Players who haven't used this upgrade station:" to the info pop-ups
 Show multiple tokens in the same space side-by-side instead of overlapping
 Animate movement of tokens
 Make graphics for the boards, tunnels, and superheated spaces
@@ -137,7 +140,6 @@ Could highlight the node that an action would take place in when you hover over 
 Replace (most of) the text in the player info boxes with token trays (can also make character selection a separate canvas if the pop-up info is a separate canvas)
 Replace the gameplay log with a canvas (but still allow scrolling and copying)--or at least HTML with images and a highlight for new entries that fades over time
 Add timed confirm button for each automatic action
-Sabotage missile upgrade stations if another one is known to the players in Aggressive Counter-Op; double-check that they get sabotaged even if passed by and had already been used before (must update version and maybe even pass version to RoundManager--probably better to keep old versions in separate files and get the version from the first call to CatchUp)
 Consider restricting ships to be usable only by the player who started there
 Come up with something to make single-player more meaningful
 Include other SSO options (Facebook, Microsoft, Google)

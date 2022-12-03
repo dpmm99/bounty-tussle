@@ -218,6 +218,7 @@ document.body.appendChild(canvas = document.createElement("canvas"));
 canvas.style.position = "absolute";
 canvas.style.top = "104px";
 canvas.style.display = "none";
+canvas.style.zIndex = -1; //Show under the other canvases
 
 function imageLoaded() {
     if (--imagesToLoad == 0 && roundManager) g.boardGraphics.drawToCanvas(g, canvas, optionsCanvas, playersCanvas);
@@ -279,7 +280,14 @@ function getTokenInfo(token, info, isCharacterSelection) {
         if (!token.isRevealed) { info.push("Unidentified station"); }
         else {
             info.push(`Station: ${token.type.name}`);
-            if (token.type.saveStation) info.push(`Players can save here`);
+            if (token.type.saveStation) {
+                info.push(`Players can save here`);
+                const savedHere = roundManager.getPlayersWhoSavedAtStation(token);
+                if (savedHere.length) info.push("Players who last saved here:");
+                for (let player of savedHere) {
+                    info.push(`- ${player.type.name} (${player.nickname})`);
+                }
+            }
             if (token.type.refillHealth) info.push(`Refills health`);
             if (token.type.refillMissiles) info.push(`Refills missiles`);
             if (token.type.haltMovement) info.push(`Player must end turn upon using this station`);
@@ -298,6 +306,12 @@ function getTokenInfo(token, info, isCharacterSelection) {
                 if (token.upgrade.missiles > 1) info.push(`- Grants ${token.upgrade.missiles} missiles immediately`);
                 if (token.upgrade.maxHealth) info.push(`- Increases max health by ${token.upgrade.maxHealth}`);
                 if (token.upgrade.health) info.push(`- Grants ${token.upgrade.health} health immediately`);
+
+                const playersNotVisited = roundManager.getPlayersWhoCanUseStation(token);
+                if (playersNotVisited.length) info.push("Players who need to upgrade here:");
+                for (let player of playersNotVisited) {
+                    info.push(`- ${player.type.name} (${player.nickname})`);
+                }
             }
         }
     }
@@ -308,10 +322,22 @@ function controlsShouldBeEnabled() {
     return !pendingActResponse && (roundManager.players.some(p => !p.type) || roundManager.currentOptions.some(p => (p.forPlayer?.tokenId ?? roundManager.currentTurnPlayer?.tokenId) == authenticatedPlayerIdInGame));
 }
 
+function redispatchMouseEventFromTransparentPixel(e) {
+    if (e.target.getContext("2d").getImageData(e.offsetX, e.offsetY, 1, 1).data[3]) return false; //The pixel under the cursor is opaque -> return false
+    let canvasBelow = document.elementsFromPoint(e.clientX, e.clientY).filter(p => p instanceof HTMLCanvasElement && p != e.target)[0];
+    if (!canvasBelow) return false; //No other canvas element is below this one -> return false
+
+    var newEvent = new MouseEvent(e.type, e);
+    canvasBelow.dispatchEvent(newEvent); //Trigger a similar move/click event at the same visual location on the canvas below the one that triggered the event
+    return true;
+}
+
 optionsCanvas.onmousemove = playersCanvas.onmousemove = canvas.onmousemove = function (e) {
     if (controlsShouldBeEnabled() && g.boardGraphics.canvasClickables.some(clickable => e.offsetX >= clickable.left && e.offsetX <= clickable.right && e.offsetY >= clickable.top && e.offsetY < clickable.bottom && e.target == clickable.canvas)) {
-        e.target.style.cursor = "pointer";
-    } else e.target.style.cursor = "";
+        optionsCanvas.style.cursor = playersCanvas.style.cursor = canvas.style.cursor = "pointer"; //Set it for all the canvases instead of e.target because the mouse event may have been forwarded
+    } else optionsCanvas.style.cursor = playersCanvas.style.cursor = canvas.style.cursor = "";
+
+    if (e.target == optionsCanvas && redispatchMouseEventFromTransparentPixel(e)) return; //Forward the MouseEvent to the canvas underneath if the cursor is on a transparent pixel of the Options (aka. choices, aka. actions, aka. commands) canvas
 
     //Pop up extra info if the player keeps the mouse still (*near* tokens/a space) for a moment
     hoverInfo.style.display = "none";
@@ -401,6 +427,8 @@ optionsCanvas.onmousemove = playersCanvas.onmousemove = canvas.onmousemove = fun
 //Set up a click handler for that canvas rendered by boardGraphics
 optionsCanvas.onclick = playersCanvas.onclick = canvas.onclick = function (e) {
     if (!controlsShouldBeEnabled()) return;
+    if (e.target == optionsCanvas && redispatchMouseEventFromTransparentPixel(e)) return; //Forward the MouseEvent to the canvas underneath if the cursor is on a transparent pixel of the Options (aka. choices, aka. actions, aka. commands) canvas
+
     for (var clickable of g.boardGraphics.canvasClickables) {
         if (e.offsetX >= clickable.left && e.offsetX <= clickable.right && e.offsetY >= clickable.top && e.offsetY < clickable.bottom && e.target == clickable.canvas) {
             //Issue command
