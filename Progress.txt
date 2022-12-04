@@ -121,6 +121,8 @@ Done: Long-poll for snappier responses during other players' turns, with gradual
 Done: Notify player if a new game started with them in it (at least when looking at the My Games list)
 Done: Sabotage missile upgrade stations if another one is known to the players in Aggressive Counter-Op
 Done: Still had the wrong field name for optionAggressive when starting a new game
+Done: Maximum player count on the New Game form should reflect the fact that the expansion allows more players
+Done: Make a page with a different New Game form for offline play
 Was able to click the adjacent node to attack when given 2 attack options for a kill steal (shouldn't have been able to click the node due to there being 2 options pointed there)
 Maybe also add +2 to the base movement distance
 Also need another way to refill health/missiles, maybe multiple rolls for tougher enemies, but increasing travel speed (to a recharge station) and base amount for refill rolls may be enough
@@ -128,7 +130,6 @@ It's possible to get redirected to wrong URL without the /server
 Make players able to leave the game at any time
 Make players able to reset their turn to the last irreversible step (a roll or reveal)
 Show who's a part of (and playing what character and possibly has what score) each game in the game list + date started
-Add a button for serverless play
 
 Later:
 Make an instruction manual

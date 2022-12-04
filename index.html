@@ -4,88 +4,11 @@
 <head>
     <meta charset="utf-8" />
     <title>Bounty Tussle</title>
-
-    <style>
-    a:visited, a:link, a:hover {
-	    color: #607f40;
-    }
-    a:active {
-	    color: #962;
-    }
-    button {
-        padding: 4px 14px;
-    }
-    input {
-        color: #b50;
-        font-weight: bold;
-    }
-    input[type="number"] {
-        width: 5em;
-    }
-    td {
-        padding: 1px 10px;
-    }
-
-    #discord-login-link {
-        background: #7289DA;
-        color: #fff;
-        border-radius: 3px;
-        display: inline-block;
-        padding: 20px 0;
-        transition: 0.2s ease;
-        user-select: none;
-        font-family: "Montserrat",sans-serif;
-        text-decoration: none;
-        position: relative;
-        left: 40vw;
-        width: 20vw;
-        text-align: center;
-    }
-    #discord-login-link:hover {
-        background: #6B7FC5;
-    }
-
-    #about-bounty-tussle {
-        padding-top: 10px;
-        font-family: sans-serif;
-    }
-    #about-bounty-tussle summary {
-        text-align: center;
-        font-size: 14pt;
-    }
-
-    .pop-button {
-	    border-radius: 50%;
-	    background-color: #59f;
-	    color: #fff;
-	    text-decoration: none;
-	    padding: 0 5px;
-        position: relative;
-    }
-
-    .pop-panel {
-	    position: fixed;
-	    z-index: 2;
-	    background-color: #eee;
-	    border: 1px solid black;
-	    border-radius: 10px;
-	    padding: 8px;
-	    box-sizing: border-box;
-    }
-
-    .pop-backdrop {
-	    position: fixed;
-	    left: 0;
-	    top: 0;
-	    width: 100vw;
-	    height: 100vh;
-	    z-index: 1;
-    }
-    </style>
+    <link rel="stylesheet" href="clientstyles.css" />
 </head>
 <body>
     <script>
-        const serverUrl = window.location.origin == "file://" ? "http://127.0.0.1:3000/" : (window.location.origin + "/bountytussle/server/");
+        const serverUrl = window.location.origin == "file://" ? "http://127.0.0.1:3001/" : (window.location.origin + "/bountytussle/server/");
 
         //This script switches up the page layout and the loaded scripts if you're logged in already.
         function getCookie(name) {
@@ -95,6 +18,7 @@
 
         function switchToGame() {
             document.querySelector("#new-game").style = document.querySelector("#my-games").style = document.querySelector("#about-bounty-tussle").style = "display: none";
+            document.querySelector("#offline-link").style.display = "none";
             optionsCanvas.style.display = playersCanvas.style.display = canvas.style.display = "";
             //Start infinitely syncing
             let syncStarter = setInterval(async function () {
@@ -181,6 +105,7 @@
         }, false);
     </script>
     <a href="login" id="discord-login-link">Log into Bounty Tussle with Discord</a>
+    <a href="offline.html" id="offline-link">Click here to play offline.</a>
     <div id="my-games" style="display: none">
         <h2>My Games</h2>
 
@@ -193,11 +118,11 @@
 
         <form>
             <table>
-                <tr><td><label for="useExpansion">Use expansion:</label> &nbsp;<a class="pop-button" data-content="<ul><li>6 max players</li><li>2 more characters (Weavel, Kanden)</li><li>Characters have unique traits</li><li>Enemies have different stats</li><li>Enemies can be ranged (attack before the player and can attack from an adjacent space)</li><li>2 more upgrades (Ice Beam to freeze foes and Varia Suit to block superheated space damage)</li><li>Players can save at ships or save stations</li><li>Players respawn at their last save location</li></ul>"></a></td><td><input type="checkbox" name="useExpansion" id="useExpansion"></td>
-                <tr><td><label for="useAggressive">Use Aggressive Counter-Op option:</label> &nbsp;<a class="pop-button" data-content="<ul><li>Players cannot occupy the same space, even in passing, except when respawning at a save location</li><li>Players can freely attack enemies in adjacent spaces that another player attacked within the last round</li><li>Optional upgrade stations will be sabotaged after the first use</li></ul>"></a></td><td><input type="checkbox" name="useAggressive" id="useAggressive"></td></tr>
+                <tr><td><label for="useExpansion">Use expansion:</label> &nbsp;<a class="pop-button" id="use-expansion-info"></a></td><td><input type="checkbox" name="useExpansion" id="useExpansion"></td>
+                <tr><td><label for="useAggressive">Use Aggressive Counter-Op option:</label> &nbsp;<a class="pop-button" id="use-aggressive-info"></a></td><td><input type="checkbox" name="useAggressive" id="useAggressive"></td></tr>
                 <tr><td>Board: &nbsp;</td><td><select name="mapGenId"><option value="0">Base game</option><option value="1" hidden>Tiny expansion test board</option><option value="2" hidden>Empty board</option><option value="3">Expansion</option></select></td></tr>
             </table>
-            <h2>Invite up to 5 other players:</h2>
+            <h2>Invite up to <b id="max-other-player-count">3</b> other players:</h2>
             <table>
                 <thead><tr><th style="width:50%">Uninvited</th><th>Invited</th></tr></thead>
                 <tr><td><input type="text" name="player_search" placeholder="Search to invite..." onchange="javascript:search()" onkeydown="javascript:search()"></td><td rowspan="2" style="border-left: 1px solid black;"><ul id="player-ids"></ul></td></tr>
@@ -214,6 +139,7 @@
         <h3>Things you can do:</h3>
         <ul>
             <li>Log in with Discord.</li>
+            <li><a href="offline.html">Play offline</a> if you have friends physically present.</li>
             <li>Find and invite other players by partial Discord ID if they have logged in before.</li>
             <li>Pick a hunter to play as, get upgrades, backtrack, defeat enemies to earn bounty (unless you've got terrible die-rolling luck), and destroy the Metroid and save the galaxy &lt;/Metroid 1 manual quote&gt;.</li>
             <li>Control your character by clicking buttons at the top of the screen, by pressing the indicated number key on your keyboard, or by clicking spaces on the board (except when multiple options would put your character in that same space).</li>
@@ -317,9 +243,13 @@
             }, 250);
         }
 
+        function getInvitedPlayerIds() { return [...document.querySelectorAll("#player-ids [data-id]")].map(p => parseInt(p.dataset.id)); }
+
+        function getMaxInviteeCount() { return document.forms[0].useExpansion.checked ? 5 : 3; }
+
         function togglePlayer(elem) {
-            var newParent = [document.getElementById("player-ids"), document.getElementById("uninvited")].filter(p => p != elem.closest("ul"))[0];
-            if (newParent.id == "player-ids" && newParent.children.length >= 5) {
+            const newParent = [document.getElementById("player-ids"), document.getElementById("uninvited")].filter(p => p != elem.closest("ul"))[0];
+            if (newParent.id == "player-ids" && getInvitedPlayerIds().filter(p => p != authenticatedPlayerIdOnServer).length >= getMaxInviteeCount()) { //You can invite yourself to control the turn order, so if you have, filter yourself out when checking the invitee count
                 alert("You have already invited the maximum number of players to this game.");
                 return false;
             }
@@ -328,63 +258,23 @@
             return false;
         }
 
-        function submit() {
-            var playerIds = [...document.querySelectorAll("#player-ids [data-id]")].map(p => p.dataset.id);
-            switchToGame();
-            createNewGameOnServer({ players: playerIds, useExpansion: document.forms[0].useExpansion.checked, useAggressive: document.forms[0].useAggressive.checked, mapGenId: parseInt(document.forms[0].mapGenId.value) });
+        //Set max player count based on the Use Expansion checkbox state
+        document.forms[0].useExpansion.onchange = function () {
+            document.getElementById("max-other-player-count").innerText = getMaxInviteeCount();
         }
 
-        //Set up the info pop-up buttons
-        for (let pop of [...document.querySelectorAll(".pop-button")]) {
-            pop.innerText = "?";
-            pop.onclick = pop.onmouseenter = (event) => {
-                popOpen(event);
-                event.stopPropagation();
-                return false;
+        function submit() {
+            const playerIds = getInvitedPlayerIds();
+            const excessPlayers = getMaxInviteeCount() - playerIds.filter(p => p != authenticatedPlayerIdOnServer).length;
+            if (excessPlayers > 0) {
+                let resolution = "Either check the 'Use expansion' box to play with the expansion rules or click on some invited players to disinvite them.";
+                if (document.forms[0].useExpansion.checked) "Click on some invited players to disinvite them."; //Just in case the user finds a bug or messes with the code. ;)
+                alert("You have invited " + excessPlayers + " more than the allowed number of players (4 for the base game or 6 for the expansion). " + resolution);
+                return;
             }
 
-            //Make sure pressing space and pressing enter result in the same thing as a click
-            pop.onkeydown = (event) => {
-                if (event.key == "Enter" || event.key == " ") {
-                    popOpen(event);
-                    event.preventDefault();
-                }
-            };
-        }
-
-        /**
-         * Create DOM elements to display the content of an info pop-up button.
-         */
-        function popOpen(event) {
-            //Make a pop-panel and pop-backdrop on the body.
-            var backdrop = document.createElement("div");
-            backdrop.classList.add("pop-backdrop");
-
-            var panel = document.createElement("div");
-            panel.classList.add("pop-panel");
-            panel.innerHTML = event.target.dataset.content;
-
-            document.body.appendChild(backdrop);
-            document.body.appendChild(panel);
-
-            panel.onmouseleave = backdrop.onclick = () => {
-                //Remove the checkbox from our tracking list
-                panel.remove();
-                backdrop.remove();
-            };
-
-            //Let the escape key close the pop panel
-            panel.onkeydown = (innerEvent) => {
-                if (innerEvent.key == "Escape") {
-                    backdrop.click();
-                    event.target.focus(); //Put the user's focus back where it was before (for keyboard navigation)
-                }
-            };
-
-            //Make sure the width is no greater than 8x the initial height (for decent proportioning--the final aspect ratio will be much less than 8:1) and no greater than the width of the viewport.
-            panel.style.width = Math.min(panel.offsetHeight * 8, Math.min(document.body.clientWidth, panel.offsetWidth)) + "px";
-            panel.style.left = Math.max(0, Math.min(event.target.offsetLeft - document.body.scrollLeft - 10 /*pop-panel left padding*/, document.body.clientWidth - panel.offsetWidth)) + "px";
-            panel.style.top = Math.max(0, Math.min(event.target.offsetTop - document.body.scrollTop - 10 /*pop-panel top padding*/, document.body.clientHeight - panel.offsetHeight)) + "px";
+            switchToGame();
+            createNewGameOnServer({ players: playerIds, useExpansion: document.forms[0].useExpansion.checked, useAggressive: document.forms[0].useAggressive.checked, mapGenId: parseInt(document.forms[0].mapGenId.value) });
         }
     </script>
 
@@ -392,21 +282,6 @@
         //Hooks up client.js to the server instead of playing the game fully locally
         function dispatchOrder(command) { return sendOrderToServer(command); }
         function dispatchCharacterSelection(character) { return sendCharacterSelectionToServer(character); }
-
-        //Enable players to choose options by pressing keys.
-        var heldKeys = {};
-        document.onkeydown = function (event) {
-            if (!isNaN(parseInt(event.key))) heldKeys[event.key] = true; //If the key is a digit, mark it as held
-            if (event.key == "Escape") heldKeys = {}; //If you press escape, all held keys should be cancelled.
-        }
-        document.onkeyup = function (event) {
-            if (!heldKeys[event.key]) return; //Ignore keystrokes if escape was hit while the key was being held (or they were holding the key when they brought the window into focus).
-
-            if (!isNaN(parseInt(event.key))) { //If the key is a digit
-                let keyAsInt = parseInt(event.key);
-                if (roundManager.currentOptions.length > keyAsInt) dispatchOrder(roundManager.currentOptions[keyAsInt]);
-            }
-        }
     </script>
 </body>
 </html>

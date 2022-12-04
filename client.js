@@ -1,30 +1,27 @@
-//To use this, a web page must have a dispatchOrder function and a dispatchCharacterSelection function
-var g = new GameStarter();
-var roundManager;
-var nextDecisionToRequest = -1; //For server sync requests
-var authenticatedPlayerIdOnServer; //Should come from a cookie
+//To use this, a web page must have a dispatchOrder function and a dispatchCharacterSelection function. This file should be loaded in the document DOMContentLoaded event or at least after all the elements this file references.
+let g = new GameStarter();
+let roundManager;
+let nextDecisionToRequest = -1; //For server sync requests
+let authenticatedPlayerIdOnServer; //Should come from a cookie
 let authenticatedPlayerIdInGame = 0;
 
 function createNewGameOnServer(parameters) {
     fetch(serverUrl + "newgame", { method: "POST", headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(parameters) })
         .then((response) => response.json())
-        .then((data) => {
-            if (data.text) { console.error(data.text); return; }
-            g.gameId ??= data.gameId;
-            roundManager = g.prepareGame(data.tokens.filter(p => p.tokenClass == "Player").length, data.expansion, data.optionAggressive, 2, undefined, logGameEventToTextArea);
-            syncFromServer(data);
-        });
+        .then(fullSync);
 }
 
 function requestFullSyncFromServer(gameId) {
     fetch(serverUrl + "sync", { method: "POST", headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gameId: gameId, fromDecision: -1 }) })
         .then((response) => response.json())
-        .then((data) => {
-            if (data.text) { console.error(data.text); return; }
-            g.gameId ??= data.gameId;
-            roundManager = g.prepareGame(data.tokens.filter(p => p.tokenClass == "Player").length, data.expansion, data.optionAggressive, 2, undefined, logGameEventToTextArea); //Reset the RoundManager entirely
-            syncFromServer(data);
-        });
+        .then(fullSync);
+}
+
+function fullSync(data) {
+    if (data.text) { console.error(data.text); return; }
+    g.gameId ??= data.gameId;
+    roundManager = g.prepareGame(data.tokens.filter(p => p.tokenClass == "Player").length, data.expansion, data.optionAggressive, 2 /*empty map*/, undefined, logGameEventToTextArea); //Reset the RoundManager entirely
+    syncFromServer(data);
 }
 
 function logGameEventToTextArea(text) {
@@ -231,10 +228,10 @@ imageLoaded();
 
 //Change cursor when it moves over a clickable area of the board
 let mouseHoverInfoTimer;
-let hoverInfo = document.querySelector("hover-info");
+let hoverInfo = document.getElementById("hover-info");
 if (!hoverInfo) {
-    //Wild, but I'm gonna use a second canvas. :P
     hoverInfo = document.createElement("canvas");
+    hoverInfo.id = "hover-info";
     hoverInfo.style.display = "none";
     hoverInfo.width = 250;
     hoverInfo.height = 150;
@@ -437,4 +434,76 @@ optionsCanvas.onclick = playersCanvas.onclick = canvas.onclick = function (e) {
             break; //Because the above changes canvasClickables...and I could also have had multiple on top of each other, in theory.
         }
     }
+}
+
+//Enable players to choose options by pressing keys.
+var heldKeys = {};
+document.addEventListener("keydown", function (event) {
+    if (!isNaN(parseInt(event.key))) heldKeys[event.key] = true; //If the key is a digit, mark it as held
+    if (event.key == "Escape") heldKeys = {}; //If you press escape, all held keys should be cancelled.
+});
+document.addEventListener("keyup", function (event) {
+    if (!heldKeys[event.key]) return; //Ignore keystrokes if escape was hit while the key was being held (or they were holding the key when they brought the window into focus).
+
+    if (!isNaN(parseInt(event.key))) { //If the key is a digit
+        let keyAsInt = parseInt(event.key);
+        if (roundManager.currentOptions.length > keyAsInt) dispatchOrder(roundManager.currentOptions[keyAsInt]);
+    }
+});
+
+//Informational pop-ups for the New Game section
+(document.querySelector("#use-expansion-info")?.dataset ?? {}).content = `<ul><li>6 max players</li><li>2 more characters (Weavel, Kanden)</li><li>Characters have unique traits</li><li>Enemies have different stats</li><li>Enemies can be ranged (attack before the player and can attack from an adjacent space)</li><li>2 more upgrades (Ice Beam to freeze foes and Varia Suit to block superheated space damage)</li><li>Players can save at ships or save stations</li><li>Players respawn at their last save location</li></ul>`;
+(document.querySelector("#use-aggressive-info")?.dataset ?? {}).content = `<ul><li>Players cannot occupy the same space, even in passing, except when respawning at a save location</li><li>Players can freely attack enemies in adjacent spaces that another player attacked within the last round</li><li>Optional upgrade stations will be sabotaged after the first use</li></ul>`;
+
+//Set up the info pop-up buttons
+for (let pop of [...document.querySelectorAll(".pop-button")]) {
+    pop.innerText = "?";
+    pop.onclick = pop.onmouseenter = (event) => {
+        popOpen(event);
+        event.stopPropagation();
+        return false;
+    }
+
+    //Make sure pressing space and pressing enter result in the same thing as a click
+    pop.onkeydown = (event) => {
+        if (event.key == "Enter" || event.key == " ") {
+            popOpen(event);
+            event.preventDefault();
+        }
+    };
+}
+
+/**
+    * Create DOM elements to display the content of an info pop-up button.
+    */
+function popOpen(event) {
+    //Make a pop-panel and pop-backdrop on the body.
+    var backdrop = document.createElement("div");
+    backdrop.classList.add("pop-backdrop");
+
+    var panel = document.createElement("div");
+    panel.classList.add("pop-panel");
+    panel.innerHTML = event.target.dataset.content;
+
+    document.body.appendChild(backdrop);
+    document.body.appendChild(panel);
+
+    panel.onmouseleave = backdrop.onclick = () => {
+        //Remove the checkbox from our tracking list
+        panel.remove();
+        backdrop.remove();
+    };
+
+    //Let the escape key close the pop panel
+    panel.onkeydown = (innerEvent) => {
+        if (innerEvent.key == "Escape") {
+            backdrop.click();
+            event.target.focus(); //Put the user's focus back where it was before (for keyboard navigation)
+        }
+    };
+
+    //Make sure the width is no greater than 8x the initial height (for decent proportioning--the final aspect ratio will be much less than 8:1) and no greater than the width of the viewport.
+    panel.style.width = Math.min(panel.offsetHeight * 8, Math.min(document.body.clientWidth, panel.offsetWidth)) + "px";
+    panel.style.left = Math.max(0, Math.min(event.target.offsetLeft - document.body.scrollLeft - 10 /*pop-panel left padding*/, document.body.clientWidth - panel.offsetWidth)) + "px";
+    panel.style.top = Math.max(0, Math.min(event.target.offsetTop - document.body.scrollTop - 10 /*pop-panel top padding*/, document.body.clientHeight - panel.offsetHeight)) + "px";
 }

@@ -427,13 +427,13 @@ async function startServer() {
 				} //TODO: logout, leave, view end results, list past games...
 
 				//Static file delivery
-				else if (lowercasePath.endsWith(".html") || lowercasePath.endsWith(".js") || lowercasePath.endsWith(".png") || lowercasePath.endsWith(".ttf") || lowercasePath.endsWith(".ico")) { //This is especially for local testing because it can't redirect to a file:// path, but it also works okay on the server (aside from losing features like compression).
+				else if (lowercasePath.endsWith(".html") || lowercasePath.endsWith(".css") || lowercasePath.endsWith(".js") || lowercasePath.endsWith(".png") || lowercasePath.endsWith(".ttf") || lowercasePath.endsWith(".ico")) { //This is especially for local testing because it can't redirect to a file:// path, but it also works okay on the server (aside from losing features like compression).
 					if (lowercasePath.endsWith("/index.html") && !cookies?.sessionID) redirectIfNotLoggedIn(cookies, urlObject, res, player, false, false); //Also create a session and set a session cookie if they're going to the landing page and don't have one
 
 					//Just send the file (but only files in the exact same directory as the server files, no subdirectories or anything--except .png comes from /img)
 					const filename = urlObject.pathname.substr(urlObject.pathname.lastIndexOf("/") + 1);
 					res.statusCode = 200;
-					res.setHeader("Content-Type", lowercasePath.endsWith(".html") ? "text/html" : lowercasePath.endsWith(".js") ? "application/javascript" : lowercasePath.endsWith(".png") ? "image/png" : lowercasePath.endsWith(".ico") ? "image/x-icon" : "application/octet-stream");
+					res.setHeader("Content-Type", lowercasePath.endsWith(".html") ? "text/html" : lowercasePath.endsWith(".js") ? "application/javascript" : lowercasePath.endsWith(".png") ? "image/png" : lowercasePath.endsWith(".ico") ? "image/x-icon" : lowercasePath.endsWith(".css") ? "text/css" : "application/octet-stream");
 					const fs = require('fs');
 					const readStream = fs.createReadStream((lowercasePath.endsWith(".png") ? "img/" : "") + filename);
 					readStream.on('open', () => readStream.pipe(res));

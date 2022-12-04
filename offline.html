@@ -1,0 +1,87 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title>Bounty Tussle</title>
+    <link rel="stylesheet" href="clientstyles.css" />
+    <script src="main.js"></script>
+</head>
+<body>
+    <div id="new-game">
+        <h2>New Offline Game</h2>
+        <p class="warn">Warning: Your game will be lost if you refresh the page, navigate away, or close this browser tab. <a href="index.html">Click here to log in and play online.</a></p>
+        <form>
+            <table>
+                <tr><td><label for="useExpansion">Use expansion:</label> &nbsp;<a class="pop-button" id="use-expansion-info"></a></td><td><input type="checkbox" name="useExpansion" id="useExpansion"></td></tr>
+                <tr><td><label for="useAggressive">Use Aggressive Counter-Op option:</label> &nbsp;<a class="pop-button" id="use-aggressive-info"></a></td><td><input type="checkbox" name="useAggressive" id="useAggressive"></td></tr>
+                <tr><td>Board: &nbsp;</td><td><select name="mapGenId"><option value="0">Base game</option><option value="1" hidden>Tiny expansion test board</option><option value="2" hidden>Empty board</option><option value="3">Expansion</option></select></td></tr>
+                <tr><td>Number of players: &nbsp;</td><td><select name="playerCount"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4" selected>4</option><option value="5" style="display:none">5</option><option value="6" style="display:none">6</option></select></td></tr>
+                <tr><td>Player 1 nickname:</td><td><input type="text" name="nick0"></td></tr>
+                <tr><td>Player 2 nickname:</td><td><input type="text" name="nick1"></td></tr>
+                <tr><td>Player 3 nickname:</td><td><input type="text" name="nick2"></td></tr>
+                <tr><td>Player 4 nickname:</td><td><input type="text" name="nick3"></td></tr>
+                <tr style="display:none"><td>Player 5 nickname:</td><td><input type="text" name="nick4"></td></tr>
+                <tr style="display:none"><td>Player 6 nickname:</td><td><input type="text" name="nick5"></td></tr>
+            </table>
+        </form>
+        <br />
+        <button onclick="javascript:submit()">Start Game</button>
+    </div>
+    <script src="client.js"></script>
+    <script>
+        document.forms[0].playerCount.onchange = function (e) {
+            let playerCount = parseInt(e.target.value);
+            for (let x = 0; x < 6; x++) {
+                document.querySelector(`[name=nick${x}]`).parentElement.parentElement.style.display = x < playerCount ? "" : "none";
+            }
+        }
+
+        //Set max player count based on the Use Expansion checkbox state
+        document.forms[0].useExpansion.onchange = function (e) {
+            let highPlayerCountOptions = [...document.forms[0].playerCount.querySelectorAll("[value='5'],[value='6']")];
+            if (e.target.checked) {
+                highPlayerCountOptions.forEach(p => p.style.display = "");
+            } else {
+                if (parseInt(document.forms[0].playerCount.value) > 4) {
+                    document.forms[0].playerCount.value = 4;
+                    let changeEvent = new Event("change");
+                    document.forms[0].playerCount.dispatchEvent(changeEvent);
+                }
+                highPlayerCountOptions.forEach(p => p.style.display = "none");
+            }
+        }
+
+        function dispatchOrder(command) {
+            roundManager.order(roundManager.currentOptions[command]);
+            authenticatedPlayerIdInGame = authenticatedPlayerIdOnServer = roundManager.currentTurnPlayer.tokenId; //because the UI depends on who the "local player" is, make the "local player" always the current turn's player
+            g.boardGraphics.drawToCanvas(g, canvas, optionsCanvas, playersCanvas);
+        }
+
+        function dispatchCharacterSelection(character) { //Pick characters in player turn order if playing locally
+            roundManager.players[authenticatedPlayerIdInGame].setCharacter(g.playerTokenTypes[character]);
+            if (authenticatedPlayerIdInGame < roundManager.players.length - 1) authenticatedPlayerIdInGame++;
+            else { //If everyone has picked a character, start the game
+                authenticatedPlayerIdInGame = 0;
+                roundManager.start();
+            }
+            g.boardGraphics.drawToCanvas(g, canvas, optionsCanvas, playersCanvas);
+        }
+
+        function submit() {
+            roundManager = g.prepareGame(parseInt(document.forms[0].playerCount.value), document.forms[0].useExpansion.checked, document.forms[0].useAggressive.checked, parseInt(document.forms[0].mapGenId.value), undefined, logGameEventToTextArea);
+
+            //The "server" is local, so make the in-game player IDs and user IDs (authenticatedPlayerIdOnServer) the same
+            for (let x = 0; x < roundManager.players.length; x++) {
+                roundManager.players[x].playerUserId = x;
+                roundManager.players[x].nickname = document.forms[0][`nick${x}`].value ?? "Player " + (x + 1);
+            }
+            authenticatedPlayerIdInGame = authenticatedPlayerIdOnServer = 0;
+
+            document.querySelector("#new-game").style = "display: none";
+            optionsCanvas.style.display = playersCanvas.style.display = canvas.style.display = "";
+            g.boardGraphics.drawToCanvas(g, canvas, optionsCanvas, playersCanvas);
+        }
+    </script>
+</body>
+</html>
