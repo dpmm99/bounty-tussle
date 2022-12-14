@@ -265,7 +265,7 @@
 
         function submit() {
             const playerIds = getInvitedPlayerIds();
-            const excessPlayers = getMaxInviteeCount() - playerIds.filter(p => p != authenticatedPlayerIdOnServer).length;
+            const excessPlayers = playerIds.filter(p => p != authenticatedPlayerIdOnServer).length - getMaxInviteeCount();
             if (excessPlayers > 0) {
                 let resolution = "Either check the 'Use expansion' box to play with the expansion rules or click on some invited players to disinvite them.";
                 if (document.forms[0].useExpansion.checked) "Click on some invited players to disinvite them."; //Just in case the user finds a bug or messes with the code. ;)

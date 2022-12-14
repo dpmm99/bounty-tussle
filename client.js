@@ -171,6 +171,8 @@ function syncFromServer(data) {
         for (let token of roundManager.tokens) setTokenNodeReferencesFromIds(token); //The tokens all know where they are in the map, so this updates MapNode.containedTokens as well.
         for (let node of roundManager.map) setAdjacentNodeReferencesFromIds(node);
         g.optimize(); //Rebuild some needed arrays in the RoundManager
+
+        authenticatedPlayerIdOnServer = parseInt(getCookie("player"));
         authenticatedPlayerIdInGame = roundManager.players.findIndex(p => p.playerUserId == authenticatedPlayerIdOnServer);
     } else { //The data should only include partial info about tokens (at most, tokenClass, typeName, and upgradeName)
         for (let resToken of data.tokens || []) {
