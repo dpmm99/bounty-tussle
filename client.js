@@ -24,7 +24,7 @@ function fullSync(data) {
     roundManager = g.prepareGame(data.tokens.filter(p => p.tokenClass == "Player").length, data.expansion, data.optionAggressive, 2 /*empty map*/, undefined, (text) => log.push(text)); //Reset the RoundManager entirely
     syncFromServer(data);
     //Do logging normally after the initial sync. During the sync, build the log in memory, then put it in the DOM all at once. This saved 9.4 out of 9.6 seconds when loading a completed game with 1327 steps.
-    this.roundManager.logGameEvent = logGameEventToTextArea;
+    roundManager.logGameEvent = logGameEventToTextArea;
     logGameEventToTextArea(log.reverse().join(""));
 }
 
