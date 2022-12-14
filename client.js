@@ -20,8 +20,12 @@ function requestFullSyncFromServer(gameId) {
 function fullSync(data) {
     if (data.text) { console.error(data.text); return; }
     g.gameId ??= data.gameId;
-    roundManager = g.prepareGame(data.tokens.filter(p => p.tokenClass == "Player").length, data.expansion, data.optionAggressive, 2 /*empty map*/, undefined, logGameEventToTextArea); //Reset the RoundManager entirely
+    var log = [];
+    roundManager = g.prepareGame(data.tokens.filter(p => p.tokenClass == "Player").length, data.expansion, data.optionAggressive, 2 /*empty map*/, undefined, (text) => log.push(text)); //Reset the RoundManager entirely
     syncFromServer(data);
+    //Do logging normally after the initial sync. During the sync, build the log in memory, then put it in the DOM all at once. This saved 9.4 out of 9.6 seconds when loading a completed game with 1327 steps.
+    this.roundManager.logGameEvent = logGameEventToTextArea;
+    logGameEventToTextArea(log.reverse().join(""));
 }
 
 function logGameEventToTextArea(text) {
@@ -241,7 +245,7 @@ if (!hoverInfo) {
     document.body.appendChild(hoverInfo);
 }
 
-function getTokenInfo(token, info, isCharacterSelection) {
+function getTokenInfo(token, info, currentTurnNumber, activePlayerCount, isCharacterSelection) {
     if (token instanceof Enemy) {
         if (!token.isRevealed) { info.push("Unidentified enemy"); }
         else {
@@ -251,10 +255,13 @@ function getTokenInfo(token, info, isCharacterSelection) {
             if (!token.type.beamCanHarm) info.push(`Takes no damage from beam weaponry`);
             if (token.type.invulnerableIfNotFrozen) info.push(`Only vulnerable while frozen`);
             if (token.type.ranged) info.push(`Ranged`);
+            if (token.isStunned(currentTurnNumber, activePlayerCount, true)) info.push(`Currently stunned`);
+            if (token.isFrozen(currentTurnNumber, activePlayerCount, true)) info.push(`Currently frozen`);
+            if (token.isRecharging(currentTurnNumber, activePlayerCount)) info.push(`Currently recovering from its last attack`);
         }
     } else if (token instanceof Player) {
         if (token.nickname) info.push("Player: " + token.nickname + (token.acceptedDefeat ? " (defeated)" : ""));
-        info.push(`Character: ${token.type.name} (${token.health}/${token.maxHealth})`);
+        info.push(`Player: ${token.type.name} (${token.health}/${token.maxHealth})`);
         if (token.maxMissiles && isCharacterSelection) info.push(`Starts with ${token.maxMissiles} missile${token.maxMissiles != 1 ? "s" : ""}`);
         else if (token.maxMissiles) info.push(`Missiles: ${token.missiles}/${token.maxMissiles}`);
         if (token.type.stunConditionRollAtLeast) info.push(`Can stun foe if attack roll is at least ${token.type.stunConditionRollAtLeast}`);
@@ -331,6 +338,7 @@ function redispatchMouseEventFromTransparentPixel(e) {
     return true;
 }
 
+var cursorHoverStartCoords = { x: 0, y: 0 };
 optionsCanvas.onmousemove = playersCanvas.onmousemove = canvas.onmousemove = function (e) {
     if (controlsShouldBeEnabled() && g.boardGraphics.canvasClickables.some(clickable => e.offsetX >= clickable.left && e.offsetX <= clickable.right && e.offsetY >= clickable.top && e.offsetY < clickable.bottom && e.target == clickable.canvas)) {
         optionsCanvas.style.cursor = playersCanvas.style.cursor = canvas.style.cursor = "pointer"; //Set it for all the canvases instead of e.target because the mouse event may have been forwarded
@@ -339,11 +347,13 @@ optionsCanvas.onmousemove = playersCanvas.onmousemove = canvas.onmousemove = fun
     if (e.target == optionsCanvas && redispatchMouseEventFromTransparentPixel(e)) return; //Forward the MouseEvent to the canvas underneath if the cursor is on a transparent pixel of the Options (aka. choices, aka. actions, aka. commands) canvas
 
     //Pop up extra info if the player keeps the mouse still (*near* tokens/a space) for a moment
-    hoverInfo.style.display = "none";
+    if (Math.pow(cursorHoverStartCoords.x - e.offsetX, 2) + Math.pow(cursorHoverStartCoords.y - e.offsetY, 2) > 25) hoverInfo.style.display = "none";
     if (mouseHoverInfoTimer) clearTimeout(mouseHoverInfoTimer);
     const lastX = e.offsetX, lastY = e.offsetY, target = e.target;
     mouseHoverInfoTimer = setTimeout(() => {
         if (!roundManager?.players?.length) return; //Has to be an active game
+
+        cursorHoverStartCoords = { x: lastX, y: lastY };
 
         //Get the map node nearest the cursor, but only for the main (game board) canvas
         let closestNode = roundManager.map[0];
@@ -364,7 +374,7 @@ optionsCanvas.onmousemove = playersCanvas.onmousemove = canvas.onmousemove = fun
         if (roundManager.players.some(p => !p.type && !p.acceptDefeat) && overCanvasClickable) { //Mouse hovered over a character selection image
             let fakePlayer = new Player();
             fakePlayer.setCharacter(g.playerTokenTypes[overCanvasClickable.character]);
-            getTokenInfo(fakePlayer, info, true);
+            getTokenInfo(fakePlayer, info, roundManager.currentTurnNumber, roundManager.players.length, true);
 
         } else if (closestDistSqr < 30 * 30) { //Mouse hovered over a node
             if (closestNode.isMetroidContainment) info.push("Metroid Containment space");
@@ -375,7 +385,7 @@ optionsCanvas.onmousemove = playersCanvas.onmousemove = canvas.onmousemove = fun
             info[0] = closestNode.nodeId + ". " + info[0];
             if (!closestNode.containedTokens.length) info.push("Empty");
             for (let token of closestNode.containedTokens) {
-                getTokenInfo(token, info);
+                getTokenInfo(token, info, roundManager.currentTurnNumber, roundManager.players.length);
             }
         }
 
@@ -416,6 +426,7 @@ optionsCanvas.onmousemove = playersCanvas.onmousemove = canvas.onmousemove = fun
                     nextLineY += 7;
                 }
 
+                ctx.fillStyle = infoLine.startsWith("Currently") ? "#055" : "#000"; //"Currently stunned/frozen/recovering" is displayed more obviously in a cyan color
                 ctx.fillText(infoLine, 5, nextLineY + 10, hoverInfo.width - 10); //The +10 is because the Y position is the font baseline... The third parameter will actually shrink the text to fit hoverInfo's width.
                 nextLineY += 11;
             }

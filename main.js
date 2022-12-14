@@ -984,6 +984,7 @@ class RoundManager {
         this.moveToken(this.currentTurnPlayer, toNode);
         if (!this.playersCanInhabitSameSpace) this.availableLandingSites.splice(this.availableLandingSites.indexOf(toNode), 1); //Remove that landing site from the available options, if players can't inhabit the same spaces
         if (this.playersCanRevive) this.currentTurnPlayer.nodeLastSavedAt = toNode; //Use the player's landing site as a save station, if that option is enabled
+        this.logGameEvent(this.currentTurnPlayer.type.name + " started at map node " + toNode.nodeId);
         this.finishTurn();
     }
 
@@ -1559,7 +1560,8 @@ class BoardGraphics {
     canvasDrawD6(ctx, face) {
         ctx.fillStyle = "#55a";
         ctx.beginPath();
-        ctx.roundRect(0, 0, 64, 64, 6);
+        if (ctx.roundRect) ctx.roundRect(0, 0, 64, 64, 6);
+        else ctx.fillRect(0, 0, 64, 64);
         ctx.fill();
         ctx.fillStyle = "#fff";
 
@@ -2006,14 +2008,22 @@ class Enemy extends Token {
         return this.frozenSinceTurn > currentTurnNumber - activePlayerCount * this.freezeDurationRounds - (delayThaw ? 1 : 0); //if delayThaw is truthy, this acts as if the current turn hasn't started yet
     }
 
+    isStunned(currentTurnNumber, activePlayerCount, delayRecovery) {
+        return this.stunnedSinceTurn > currentTurnNumber - activePlayerCount * this.stunDurationRounds - (delayRecovery ? 1 : 0);
+    }
+
+    isRecharging(currentTurnNumber, activePlayerCount) {
+        return this.lastAttackTurn > currentTurnNumber - activePlayerCount;
+    }
+
     /**
      * Enemy can attack right now. Requirements: it's alive, it's not stunned, it's not frozen, and it hasn't attacked for 1 full round
      */
     canAttack(currentTurnNumber, activePlayerCount, delayThaw) {
         return this.health &&
-            this.stunnedSinceTurn <= currentTurnNumber - activePlayerCount * this.stunDurationRounds &&
+            !this.isStunned(currentTurnNumber, activePlayerCount) && //TODO: Must update the game version and pass delayThaw into isStunned as well.
             !this.isFrozen(currentTurnNumber, activePlayerCount, delayThaw) &&
-            this.lastAttackTurn <= currentTurnNumber - activePlayerCount;
+            !this.isRecharging(currentTurnNumber, activePlayerCount);
     }
 }
 
