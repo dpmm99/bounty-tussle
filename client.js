@@ -25,7 +25,7 @@ function fullSync(data) {
     syncFromServer(data);
     //Do logging normally after the initial sync. During the sync, build the log in memory, then put it in the DOM all at once. This saved 9.4 out of 9.6 seconds when loading a completed game with 1327 steps.
     roundManager.logGameEvent = logGameEventToTextArea;
-    logGameEventToTextArea(log.reverse().join(""));
+    logGameEventToTextArea(log.reverse().join("\n"));
 }
 
 function logGameEventToTextArea(text) {
