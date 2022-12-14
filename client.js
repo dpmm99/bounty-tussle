@@ -161,7 +161,7 @@ function syncFromServer(data) {
         }
     }
 
-    if (data.fromDecision < nextDecisionToRequest) return; //we already have that game state reproduced locally
+    if (data.fromDecision < nextDecisionToRequest && nextDecisionToRequest != 1) return;  //we already have that game state reproduced locally, unless it's character selection still (nextDecisionToRequest would stay 1 for that time)
 
     //If the response has more map nodes than our local RoundManager, it's the first sync, so replace all tokens and map nodes. Otherwise, search for individual tokens/nodes to update.
     if (data.map && data.map.length > roundManager.map.length) {
