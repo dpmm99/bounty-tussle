@@ -1,7 +1,7 @@
 const mysql = require("mysql");
 const util = require('util');
 
-const PERSIST_VERSION = 0; //Incremental versioning for the way data is stored in the database. I made the schema very basic at first, so any new versions would likely add things or reformat existing columns.
+const PERSIST_VERSION = 1; //Combined incremental versioning for the gameplay and the way data is stored in the database. I made the schema very basic at first, so any new schema versions would likely add things or reformat existing columns.
 
 /** Open the database connection and run the given query with the given parameters, then return the result. */
 async function query(sql, params) {
@@ -67,7 +67,7 @@ exports.reverseGameDecisions = async function (id, count) {
 exports.getGame = async function (id) {
     const response = (await query("SELECT seed, players, decisions, version, options FROM bountytussle_games WHERE id = ?", [id]))[0];
 
-    return { seed: response.seed, players: deserializePlayers(response.players), decisions: [...response.decisions].map(p => parseInt(p, 36)), options: response.options.split(",") };
+    return { seed: response.seed, version: response.version, players: deserializePlayers(response.players), decisions: [...response.decisions].map(p => parseInt(p, 36)), options: response.options.split(",") };
 }
 
 /**

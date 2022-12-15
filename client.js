@@ -21,7 +21,7 @@ function fullSync(data) {
     if (data.text) { console.error(data.text); return; }
     g.gameId ??= data.gameId;
     var log = [];
-    roundManager = g.prepareGame(data.tokens.filter(p => p.tokenClass == "Player").length, data.expansion, data.optionAggressive, 2 /*empty map*/, undefined, (text) => log.push(text)); //Reset the RoundManager entirely
+    roundManager = g.prepareGame(data.version, data.tokens.filter(p => p.tokenClass == "Player").length, data.expansion, data.optionAggressive, 2 /*empty map*/, undefined, (text) => log.push(text)); //Reset the RoundManager entirely
     syncFromServer(data);
     //Do logging normally after the initial sync. During the sync, build the log in memory, then put it in the DOM all at once. This saved 9.4 out of 9.6 seconds when loading a completed game with 1327 steps.
     roundManager.logGameEvent = logGameEventToTextArea;
@@ -109,6 +109,7 @@ function sendCharacterSelectionToServer(character) {
         });
 }
 
+var wasMyTurn = false; //For audio notification if this player needs to do something
 function syncFromServer(data) {
     function classInstanceFromName(name) {
         if (name == "Player") return new Player();
@@ -202,6 +203,26 @@ function syncFromServer(data) {
     if (typeof data.nextDecision == 'number') nextDecisionToRequest = data.nextDecision;
 
     if (Object.keys(data).length) g.boardGraphics.drawToCanvas(g, canvas, optionsCanvas, playersCanvas);
+
+    //If it's this client's turn or they're being give the option to reject/accept a request or whatever, play a sound to let this client know. Just don't bleep at 'em every after every move if it's *still* their turn.
+    if ((roundManager.currentTurnPlayer.tokenId == authenticatedPlayerIdInGame && !wasMyTurn) || roundManager.currentOptions.some(p => p.forPlayer?.tokenId == authenticatedPlayerIdInGame)) playActionRequestAudio();
+    wasMyTurn = roundManager.currentTurnPlayer.tokenId == authenticatedPlayerIdInGame;
+}
+
+function playActionRequestAudio() {
+    var sfx = document.getElementById("action-request-audio");
+    if (!sfx) {
+        sfx = document.createElement("audio");
+        sfx.id = "action-request-audio";
+        sfx.src = serverUrl + "audio/ActionRequest.mp3";
+        sfx.onload = playActionRequestAudio;
+        sfx.style.position = "fixed";
+        sfx.style.right = 0;
+        sfx.style.bottom = 0;
+        document.body.appendChild(sfx);
+        return;
+    }
+    sfx.play(); //TODO: A volume slider would be great
 }
 
 var optionsCanvas;
@@ -245,7 +266,7 @@ if (!hoverInfo) {
     document.body.appendChild(hoverInfo);
 }
 
-function getTokenInfo(token, info, currentTurnNumber, activePlayerCount, isCharacterSelection) {
+function getTokenInfo(token, info, currentTurnNumber, activePlayerCount, isCharacterSelection, version) {
     if (token instanceof Enemy) {
         if (!token.isRevealed) { info.push("Unidentified enemy"); }
         else {
@@ -254,14 +275,15 @@ function getTokenInfo(token, info, currentTurnNumber, activePlayerCount, isChara
             info.push(`Enemy's attack deals ${token.type.damage} damage`);
             if (!token.type.beamCanHarm) info.push(`Takes no damage from beam weaponry`);
             if (token.type.invulnerableIfNotFrozen) info.push(`Only vulnerable while frozen`);
+            if (token.type.doubleFreezeDuration) info.push(`Thaw time is doubled after freezing`);
             if (token.type.ranged) info.push(`Ranged`);
-            if (token.isStunned(currentTurnNumber, activePlayerCount, true)) info.push(`Currently stunned`);
+            if (token.isStunned(currentTurnNumber, activePlayerCount, version >= 1)) info.push(`Currently stunned`); //Stun wore off faster in version 0
             if (token.isFrozen(currentTurnNumber, activePlayerCount, true)) info.push(`Currently frozen`);
             if (token.isRecharging(currentTurnNumber, activePlayerCount)) info.push(`Currently recovering from its last attack`);
         }
     } else if (token instanceof Player) {
+        info.push(`Character: ${token.type.name} (${token.health}/${token.maxHealth})`);
         if (token.nickname) info.push("Player: " + token.nickname + (token.acceptedDefeat ? " (defeated)" : ""));
-        info.push(`Player: ${token.type.name} (${token.health}/${token.maxHealth})`);
         if (token.maxMissiles && isCharacterSelection) info.push(`Starts with ${token.maxMissiles} missile${token.maxMissiles != 1 ? "s" : ""}`);
         else if (token.maxMissiles) info.push(`Missiles: ${token.missiles}/${token.maxMissiles}`);
         if (token.type.stunConditionRollAtLeast) info.push(`Can stun foe if attack roll is at least ${token.type.stunConditionRollAtLeast}`);
@@ -374,7 +396,7 @@ optionsCanvas.onmousemove = playersCanvas.onmousemove = canvas.onmousemove = fun
         if (roundManager.players.some(p => !p.type && !p.acceptDefeat) && overCanvasClickable) { //Mouse hovered over a character selection image
             let fakePlayer = new Player();
             fakePlayer.setCharacter(g.playerTokenTypes[overCanvasClickable.character]);
-            getTokenInfo(fakePlayer, info, roundManager.currentTurnNumber, roundManager.players.length, true);
+            getTokenInfo(fakePlayer, info, roundManager.currentTurnNumber, roundManager.players.length, true, roundManager.version);
 
         } else if (closestDistSqr < 30 * 30) { //Mouse hovered over a node
             if (closestNode.isMetroidContainment) info.push("Metroid Containment space");
@@ -385,7 +407,7 @@ optionsCanvas.onmousemove = playersCanvas.onmousemove = canvas.onmousemove = fun
             info[0] = closestNode.nodeId + ". " + info[0];
             if (!closestNode.containedTokens.length) info.push("Empty");
             for (let token of closestNode.containedTokens) {
-                getTokenInfo(token, info, roundManager.currentTurnNumber, roundManager.players.length);
+                getTokenInfo(token, info, roundManager.currentTurnNumber, roundManager.players.length, false, roundManager.version);
             }
         }
 
@@ -396,7 +418,7 @@ optionsCanvas.onmousemove = playersCanvas.onmousemove = canvas.onmousemove = fun
             //Size out the text first
             var ctx = hoverInfo.getContext("2d");
             ctx.font = '10px sans-serif';
-            hoverInfo.height = 10 + 11 * info.length + 7 * info.filter(p => p.startsWith("Enemy:") || p.startsWith("Player:") || p.startsWith("Station:")).length;
+            hoverInfo.height = 10 + 11 * info.length + 7 * info.filter(p => p.startsWith("Enemy:") || p.startsWith("Character:") || p.startsWith("Station:")).length;
             hoverInfo.width = info.map(text => ctx.measureText(text).width).reduce((max, cur) => Math.max(max, cur));
 
             //Check if it's too far to one side of the existing canvas before positioning it
@@ -418,7 +440,7 @@ optionsCanvas.onmousemove = playersCanvas.onmousemove = canvas.onmousemove = fun
             ctx.fillStyle = "#000";
             let nextLineY = 5;
             for (let infoLine of info) {
-                if (infoLine.startsWith("Enemy:") || infoLine.startsWith("Player:") || infoLine.startsWith("Station:")) { //Draw a separator line before each identified token
+                if (infoLine.startsWith("Enemy:") || infoLine.startsWith("Character:") || infoLine.startsWith("Station:")) { //Draw a separator line before each identified token
                     ctx.beginPath();
                     ctx.lineTo(15, nextLineY + 4);
                     ctx.lineTo(hoverInfo.width - 15, nextLineY + 4);

@@ -50,12 +50,21 @@ class GameStarter {
     }
 
     /**
+     * Modify gameplay data for an older version of the game. If a version changed the gameplay logic, though, the version is probably checked in RoundManager instead.
+     * @param {any} v Version number (ordinal, numeric)
+     */
+    reduceVersion(v) {
+        if (v < 1) this.enemyTokenTypes.Metroid.doubleFreezeDuration = false; //Old version would freeze Metroids for 1 round, making it take at least 4 and easily 6 turns to defeat one (if you only miss with a missile). Doubling the Metroid freeze duration makes it take at least 3 and only adds 1 to that total instead of 2 if you miss with one of the missiles.
+    }
+
+    /**
      * Get the game state ready for players to pick their characters and begin the game.
      * Returns the RoundManager that you can use to start the game.
      */
-    prepareGame(playerCount, useExpansion, useOptionAggressive, mapNumber, randomFunction = Math.random, eventLogFunction = console.log) { //TODO: The client would be given a fake random function that just returns the next not-yet-pulled roll from the server.
+    prepareGame(version, playerCount, useExpansion, useOptionAggressive, mapNumber, randomFunction = Math.random, eventLogFunction = console.log) { //TODO: The client would be given a fake random function that just returns the next not-yet-pulled roll from the server.
         if (useExpansion) this.enableExpansion();
         if (useOptionAggressive) this.enableOptionAggressive();
+        this.reduceVersion(version);
 
         const tokens = []; //list of Token. The array itself must never be replaced. Includes the players. Players are included in this list in the order that they'll be playing.
         for (let x = 0; x < playerCount; x++) tokens.push(new Player()); //Player tokens must be guaranteed to be the first tokens, so that tokenId == the index in the players list
@@ -63,6 +72,7 @@ class GameStarter {
 
         const mapGenerators = [this.generateMap, this.generateExpansionTestMap, this.generateEditorMap, this.generateExpansionDraftMap];
         const map = mapGenerators[mapNumber].apply(this, [tokens, playerCount]); //list of MapNode
+        this.roundManager.version = version;
         this.roundManager.map = map;
         this.roundManager.tokens = tokens;
         this.roundManager.logGameEvent = eventLogFunction;
@@ -907,7 +917,7 @@ class RoundManager {
 
     isAdjacentToRangedUnengagedEnemy() {
         //Check each node adjacent to the player to see if it contains an enemy which is not attacking anyone and is ranged and recharged.
-        return this.currentTurnPlayer.containingNode.adjacentNodes.find(node => node.containedTokens.filter(token => token instanceof Enemy && !token.targetedPlayer && token.canAttack(this.currentTurnNumber, this.players.length, this.delayThaw) && token.type.ranged).length);
+        return this.currentTurnPlayer.containingNode.adjacentNodes.find(node => node.containedTokens.filter(token => token instanceof Enemy && !token.targetedPlayer && token.canAttack(this.currentTurnNumber, this.players.length, this.delayThaw, this.version) && token.type.ranged).length);
     }
 
     /**
@@ -915,10 +925,10 @@ class RoundManager {
      */
     getEnemiesWhoWillAttackPlayer(ranged) {
         let sameNodeEnemies = this.currentTurnPlayer.containingNode.containedTokens.filter(token => token instanceof Enemy);
-        if (!ranged) return sameNodeEnemies.filter(enemy => (!enemy.targetedPlayer || enemy.targetedPlayer == this.currentTurnPlayer) && enemy.canAttack(this.currentTurnNumber, this.players.length, this.delayThaw)); //Melee enemies should thaw right after you attack or after you roll and then move
+        if (!ranged) return sameNodeEnemies.filter(enemy => (!enemy.targetedPlayer || enemy.targetedPlayer == this.currentTurnPlayer) && enemy.canAttack(this.currentTurnNumber, this.players.length, this.delayThaw, this.version)); //Melee enemies should thaw right after you attack or after you roll and then move
 
         let nearEnemies = sameNodeEnemies.concat(this.currentTurnPlayer.containingNode.adjacentNodes.map(node => node.containedTokens).flat().filter(token => token instanceof Enemy)); //Get ranged enemies exactly 1 map node away
-        return nearEnemies.filter(enemy => enemy.type.ranged && (!enemy.targetedPlayer || enemy.targetedPlayer == this.currentTurnPlayer) && enemy.canAttack(this.currentTurnNumber, this.players.length, this.delayThaw)); //Delay thaw of ranged enemies until the player does something, at which point ranged enemies can't attack anyway
+        return nearEnemies.filter(enemy => enemy.type.ranged && (!enemy.targetedPlayer || enemy.targetedPlayer == this.currentTurnPlayer) && enemy.canAttack(this.currentTurnNumber, this.players.length, this.delayThaw, this.version)); //Delay thaw of ranged enemies until the player does something, at which point ranged enemies can't attack anyway
     }
 
     /**
@@ -1347,18 +1357,14 @@ class RoundManager {
                 if (chosenWeapon.stunConditionRollAtLeast && rollTotal >= chosenWeapon.stunConditionRollAtLeast) {
                     enemy.stunnedSinceTurn = this.currentTurnNumber;
                     enemy.stunDurationRounds = chosenWeapon.conditionalStunRounds;
-                    this.logGameEvent("Stunned enemy");
+                    this.logGameEvent(`Stunned enemy for ${enemy.stunDurationRounds} round` + (enemy.stunDurationRounds == 1 ? '' : 's'));
                 }
                 //Freeze if needed
-                if (chosenWeapon.freezeForRoundsOnHit) { //Guaranteed freeze
+                if (chosenWeapon.freezeForRoundsOnHit || (chosenWeapon.freezeConditionRollAtLeast && rollTotal >= chosenWeapon.freezeConditionRollAtLeast)) { //Guaranteed freeze or chance freeze
                     enemy.frozenSinceTurn = this.currentTurnNumber;
-                    enemy.freezeDurationRounds = chosenWeapon.freezeForRoundsOnHit;
-                    this.logGameEvent("Froze enemy");
-                }
-                else if (chosenWeapon.freezeConditionRollAtLeast && rollTotal >= chosenWeapon.freezeConditionRollAtLeast) { //Chance freeze
-                    enemy.frozenSinceTurn = this.currentTurnNumber;
-                    enemy.freezeDurationRounds = chosenWeapon.conditionalFreezeRounds;
-                    this.logGameEvent("Froze enemy");
+                    enemy.freezeDurationRounds = chosenWeapon.freezeForRoundsOnHit || chosenWeapon.conditionalFreezeRounds;
+                    if (enemy.type.doubleFreezeDuration) enemy.freezeDurationRounds *= 2; //A version 1 addition
+                    this.logGameEvent(`Froze enemy for ${enemy.freezeDurationRounds} round` + (enemy.freezeDurationRounds == 1 ? '' : 's'));
                 }
             }
         }
@@ -1437,7 +1443,7 @@ class RoundManager {
             if (this.currentTurnPlayer.health != this.currentTurnPlayer.maxHealth) this.currentOptions.push({ command: "healthRefillRoll" });
             if (this.currentTurnPlayer.missiles != this.currentTurnPlayer.maxMissiles) this.currentOptions.push({ command: "missileRefillRoll" });
             if (this.currentOptions.length) this.currentOptions.push({ command: "skip" }); //You can choose to just end your turn regardless of whether you *can* get a refill
-        } else if (!enemy.type.ranged && enemy.canAttack(this.currentTurnNumber, this.players.length) && !noRetaliation) return this.dodgeRoll(enemy); //Have to follow up any attack with a dodge if the enemy is still alive and isn't ranged (which attack first)
+        } else if (!enemy.type.ranged && enemy.canAttack(this.currentTurnNumber, this.players.length, false, this.version) && !noRetaliation) return this.dodgeRoll(enemy); //Have to follow up any attack with a dodge if the enemy is still alive and isn't ranged (which attack first)
         return true;
     }
 
@@ -1720,7 +1726,14 @@ class BoardGraphics {
                 if (token.isRevealed || token instanceof Player) {
                     canvas.fillStyle = token == roundManager.currentTurnPlayer ? "magenta" : token instanceof Player ? "pink" : "blue"; //Magenta for current player, pink for other players, blue for non-players
                     canvas.fillText(tokenName, roundManager.map[i].x, roundManager.map[i].y + 10 - (token instanceof Player ? 20 : 0));
+
+                    if (token instanceof Enemy) { //Tint enemies if frozen or stunned
+                        if (token.isFrozen(roundManager.currentTurnNumber, roundManager.players.length, roundManager.delayThaw)) canvas.filter = "sepia(1) hue-rotate(140deg)";
+                        else if (token.isStunned(roundManager.currentTurnNumber, roundManager.players.length, roundManager.version >= 1 && roundManager.delayThaw)) canvas.filter = "sepia(1) saturate(2) hue-rotate(-20deg)";
+                    }
+
                     if (!token.acceptedDefeat) drawTokenCentered(tokenName, roundManager.map[i].x, roundManager.map[i].y); //Cease drawing a player if they accepted defeat
+                    canvas.filter = "none"; //Reset tint
 
                     if (token.upgrade) { //It's an upgrade station, and it's also revealed
                         canvas.fillText(token.upgrade.name, roundManager.map[i].x, roundManager.map[i].y + 20);
@@ -2019,9 +2032,9 @@ class Enemy extends Token {
     /**
      * Enemy can attack right now. Requirements: it's alive, it's not stunned, it's not frozen, and it hasn't attacked for 1 full round
      */
-    canAttack(currentTurnNumber, activePlayerCount, delayThaw) {
+    canAttack(currentTurnNumber, activePlayerCount, delayThaw, version) {
         return this.health &&
-            !this.isStunned(currentTurnNumber, activePlayerCount) && //TODO: Must update the game version and pass delayThaw into isStunned as well.
+            !this.isStunned(currentTurnNumber, activePlayerCount, version >= 1 ? delayThaw : false) && //Version 1 fixed the stun logic to match freeze logic
             !this.isFrozen(currentTurnNumber, activePlayerCount, delayThaw) &&
             !this.isRecharging(currentTurnNumber, activePlayerCount);
     }
@@ -2140,21 +2153,25 @@ class PlayerTokenTypes {
             name: "Samus", //For display testing
             health: PlayerTokenTypes.CharacterStandardHealth,
             dodgeRollOutOfCombatBonus: PlayerTokenTypes.CharacterStandardOutOfCombatDodgeRollBonus,
+            saveId: 0,
         };
         this.Sylux = {
             name: "Sylux", //For display testing
             health: PlayerTokenTypes.CharacterStandardHealth,
             dodgeRollOutOfCombatBonus: PlayerTokenTypes.CharacterStandardOutOfCombatDodgeRollBonus,
+            saveId: 1,
         };
         this.Spire = {
             name: "Spire", //For display testing
             health: PlayerTokenTypes.CharacterStandardHealth,
             dodgeRollOutOfCombatBonus: PlayerTokenTypes.CharacterStandardOutOfCombatDodgeRollBonus,
+            saveId: 2,
         };
         this.Noxus = {
             name: "Noxus", //For display testing
             health: PlayerTokenTypes.CharacterStandardHealth,
             dodgeRollOutOfCombatBonus: PlayerTokenTypes.CharacterStandardOutOfCombatDodgeRollBonus,
+            saveId: 3,
         };
     }
 }
@@ -2431,6 +2448,7 @@ class ExpansionPlayerTokenTypes {
             dodgeRollBonus: 2,
             canTraverseTunnels: true,
             health: PlayerTokenTypes.CharacterStandardHealth,
+            saveId: 4,
         };
         this.Kanden = {
             name: "Kanden", //For display testing
@@ -2438,6 +2456,7 @@ class ExpansionPlayerTokenTypes {
             conditionalStunRounds: 1,
             dodgeRollOutOfCombatBonus: PlayerTokenTypes.CharacterStandardOutOfCombatDodgeRollBonus,
             health: PlayerTokenTypes.CharacterStandardHealth,
+            saveId: 5,
         };
     }
 }
@@ -2489,6 +2508,7 @@ class ExpansionEnemyTokenTypes {
             dodgeRollAtLeast: 8,
             ranged: false,
             invulnerableIfNotFrozen: true,
+            doubleFreezeDuration: true,
         };
         this.PirateTrooper = {
             hitRollAtLeast: 3,

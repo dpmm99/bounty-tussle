@@ -24,6 +24,7 @@ async function newGame(players = [0], useExpansion = 0, useAggressive = 0, mapGe
 
 	const response = await catchUp(game, -1);
 	response.gameId = gameId;
+	response.version = game.version;
 	return response;
 }
 
@@ -47,7 +48,7 @@ async function pickCharacter(game, player, character) {
 	const undecidedPlayerCount = game.roundManager.players.filter(p => !p.type).length;
 	if (!undecidedPlayerCount) {
 		//Have to do this to keep the minimal persistent storage interface... and then subtract the player count from every call that references a decision number (in DB) and a step number (in RoundManager)...or integrate character selection as part of the game.
-		for (let token of game.roundManager.players) db.updateGame(game.id, Object.keys(game.gameStarter.playerTokenTypes).indexOf(token.type.name));
+		for (let token of game.roundManager.players) db.updateGame(game.id, token.type.saveId);
 		game.roundManager.start();
 	}
 
@@ -61,13 +62,13 @@ async function pickCharacter(game, player, character) {
  * @param {int} id Game instance persistent ID
  */
 async function cacheExistingGame(gameId) {
-	const { seed, players, decisions, options } = await db.getGame(gameId); //decisions is an array of integers from 0 to 35. players is an array of their bountytussle-specific IDs.
+	const { seed, players, decisions, options, version } = await db.getGame(gameId); //decisions is an array of integers from 0 to 35. players is an array of their bountytussle-specific IDs.
 	const useExpansion = parseInt(options[0]), useAggressive = parseInt(options[1]), mapGenId = parseInt(options[2]);
 
 	//Rebuild the game board with that seed
 	const g = new main.GameStarter();
-	const roundManager = g.prepareGame(players.length, useExpansion, useAggressive, mapGenId, new seedrandom(parseFloat(seed)));
-	const game = { id: gameId, seed: parseFloat(seed), players: players, gameStarter: g, roundManager: roundManager, useExpansion, useAggressive, mapGenId };
+	const roundManager = g.prepareGame(version, players.length, useExpansion, useAggressive, mapGenId, new seedrandom(parseFloat(seed)));
+	const game = { id: gameId, seed: parseFloat(seed), players: players, gameStarter: g, roundManager: roundManager, useExpansion, useAggressive, mapGenId, version };
 
 	//Get the players' nicknames and non-game-specific IDs and put them into the player tokens
 	game.playerNicknames = await db.getPlayerNicknames(players);
@@ -77,16 +78,15 @@ async function cacheExistingGame(gameId) {
 	}
 
 	//Rebuild the current state. First, set the players' characters again.
-	const characterTypesByIndex = Object.values(game.gameStarter.playerTokenTypes);
+	const characterTypesByIndex = Object.values(game.gameStarter.playerTokenTypes).sort((a, b) => a.saveId - b.saveId);
 	for (let x = 0; x < players.length && x < decisions.length; x++) {
 		roundManager.players[x].setCharacter(characterTypesByIndex[decisions[x]]); //The first [players.length] entries refer to their chosen characters by the order they appeared in GameStarter.playerTokenTypes originally.
 	}
 	if (decisions.length >= players.length) {
 		//Now go through all the remaining decisions by passing them to the RoundManager.
+		roundManager.start();
 		for (let x = players.length; x < decisions.length; x++) { //Start after the character selection decisions
 			//const previousStep = roundManager.currentStep;
-			if (x == players.length) roundManager.start(); //Could roll a die and cause x to advance more, so it's got to be in the loop //TODO: nope, I didn't save the rolls in the DB so it doesn't have to.
-
 			if (false) { //TODO: a leaver
 
 			} else if (false) { //TODO: a state reversal
@@ -152,9 +152,15 @@ function catchUp(game, fromDecision = 0) {
 
 	const newerDecisions = game.roundManager.stepHistory.slice(fromStep); //The client can replay the decisions itself, as long as it has all the recently-revealed-to-players information.
 	const response = {
-		commandIndexes: newerDecisions.filter(p => typeof p.roll != 'number').map(p => p.chosenOptionIndex), rolls: newerDecisions.filter(p => typeof p.roll == 'number').map(p => p.roll), fromDecision: fromDecision, nextDecision: chosenCharacterCount + game.roundManager.currentStep,
+		commandIndexes: newerDecisions.filter(p => typeof p.roll != 'number').map(p => p.chosenOptionIndex),
+		rolls: newerDecisions.filter(p => typeof p.roll == 'number').map(p => p.roll),
+		fromDecision: fromDecision,
+		nextDecision: chosenCharacterCount + game.roundManager.currentStep,
 		started: chosenCharacterCount == game.roundManager.players.length,
-		gameId: game.gameId, expansion: game.gameStarter.expansion, optionAggressive: game.gameStarter.optionAggressive //Client needs to know these inputs for running the rules correctly
+		version: game.version, //Nothing from here down is really necessary to send in every response, nor does 'started' need to be sent if fromDecision is high enough, but no big deal
+		gameId: game.gameId,
+		expansion: game.gameStarter.expansion,
+		optionAggressive: game.gameStarter.optionAggressive //Client needs to know these inputs for running the rules correctly
 	};
 
 	if (fromDecision == -1) { //Player has no idea what the game looks like yet (and nobody has picked a character). Give them the map on top of everything else.
@@ -169,7 +175,7 @@ function catchUp(game, fromDecision = 0) {
 		//Figure out what the initial token types/placements were using the game seed so we can send just the initial token info--but also including the CURRENTLY revealed fields--to the players. The client will do the rest of the work.
 		//Optimize network traffic by setting falsey boolean fields to undefined before serializing the response.
 		let tempGame = new main.GameStarter();
-		let tempRoundManager = tempGame.prepareGame(game.players.length, game.useExpansion, game.useAggressive, game.mapGenId, new seedrandom(game.seed));
+		let tempRoundManager = tempGame.prepareGame(game.version, game.players.length, game.useExpansion, game.useAggressive, game.mapGenId, new seedrandom(game.seed));
 		response.tokens = tempRoundManager.tokens.map(p => ({ tokenClass: p.__proto__.constructor.name, nodeId: p.containingNode?.nodeId, isEarlyStation: p.isEarlyStation || undefined, isRevealed: p.isRevealed || undefined })); //Use constructor name instead of this code: p instanceof main.Player ? "Player" : p instanceof main.Enemy ? "Enemy" : p instanceof main.Station ? "Station" : "Token"
 		for (let token of game.roundManager.tokens.filter(p => p.isRevealed || !p.containingNode)) { //Include all the token info that has been revealed since the game started. Just like the 'else' block but on the assumption that all nodes were included already.
 			response.tokens[token.tokenId].typeName = token.type?.name;
@@ -427,15 +433,15 @@ async function startServer() {
 				} //TODO: logout, leave, view end results, list past games...
 
 				//Static file delivery
-				else if (lowercasePath.endsWith(".html") || lowercasePath.endsWith(".css") || lowercasePath.endsWith(".js") || lowercasePath.endsWith(".png") || lowercasePath.endsWith(".ttf") || lowercasePath.endsWith(".ico")) { //This is especially for local testing because it can't redirect to a file:// path, but it also works okay on the server (aside from losing features like compression).
+				else if (lowercasePath.endsWith(".html") || lowercasePath.endsWith(".css") || lowercasePath.endsWith(".js") || lowercasePath.endsWith(".png") || lowercasePath.endsWith(".ttf") || lowercasePath.endsWith(".ico") || lowercasePath.endsWith(".mp3")) { //This is especially for local testing because it can't redirect to a file:// path, but it also works okay on the server (aside from losing features like compression).
 					if (lowercasePath.endsWith("/index.html") && !cookies?.sessionID) redirectIfNotLoggedIn(cookies, urlObject, res, player, false, false); //Also create a session and set a session cookie if they're going to the landing page and don't have one
 
 					//Just send the file (but only files in the exact same directory as the server files, no subdirectories or anything--except .png comes from /img)
 					const filename = urlObject.pathname.substr(urlObject.pathname.lastIndexOf("/") + 1);
 					res.statusCode = 200;
-					res.setHeader("Content-Type", lowercasePath.endsWith(".html") ? "text/html" : lowercasePath.endsWith(".js") ? "application/javascript" : lowercasePath.endsWith(".png") ? "image/png" : lowercasePath.endsWith(".ico") ? "image/x-icon" : lowercasePath.endsWith(".css") ? "text/css" : "application/octet-stream");
+					res.setHeader("Content-Type", lowercasePath.endsWith(".html") ? "text/html" : lowercasePath.endsWith(".js") ? "application/javascript" : lowercasePath.endsWith(".png") ? "image/png" : lowercasePath.endsWith(".ico") ? "image/x-icon" : lowercasePath.endsWith(".css") ? "text/css" : lowercasePath.endsWith(".mp3") ? "audio/mpeg" : "application/octet-stream");
 					const fs = require('fs');
-					const readStream = fs.createReadStream((lowercasePath.endsWith(".png") ? "img/" : "") + filename);
+					const readStream = fs.createReadStream((lowercasePath.endsWith(".png") ? "img/" : lowercasePath.endsWith(".mp3") ? "audio/" : "") + filename);
 					readStream.on('open', () => readStream.pipe(res));
 					readStream.on('error', onError);
 				}

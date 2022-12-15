@@ -69,7 +69,7 @@
         }
 
         function submit() {
-            roundManager = g.prepareGame(parseInt(document.forms[0].playerCount.value), document.forms[0].useExpansion.checked, document.forms[0].useAggressive.checked, parseInt(document.forms[0].mapGenId.value), undefined, logGameEventToTextArea);
+            roundManager = g.prepareGame(Number.MAX_SAFE_INTEGER, parseInt(document.forms[0].playerCount.value), document.forms[0].useExpansion.checked, document.forms[0].useAggressive.checked, parseInt(document.forms[0].mapGenId.value), undefined, logGameEventToTextArea);
 
             //The "server" is local, so make the in-game player IDs and user IDs (authenticatedPlayerIdOnServer) the same
             for (let x = 0; x < roundManager.players.length; x++) {

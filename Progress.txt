@@ -128,6 +128,12 @@ Done: Make tooltips only disappear if you move the cursor several pixels, not ju
 Done: Optimize full sync time by not writing directly to the text box for every step
 Done: Log the starting space people pick
 Done: Display "stunned" or "frozen" in the tooltips for enemies
+Done: Implement versioning so old games don't have to be invalidated
+Done: Make ice beam freeze Metroids longer in the expansion
+Done: Copy the fix for the start-of-turn 'frozen' state check to the 'isStunned' code
+Done: Tint frozen/stunned enemies
+Done: Make a SFX to notify you when it's your turn
+Put in a volume slider for the notification SFX (at least players can just mute the site if they don't like it)
 Was able to click the adjacent node to attack when given 2 attack options for a kill steal (shouldn't have been able to click the node due to there being 2 options pointed there)
 Maybe also add +2 to the base movement distance
 Also need another way to refill health/missiles, maybe multiple rolls for tougher enemies, but increasing travel speed (to a recharge station) and base amount for refill rolls may be enough. Might want to make recharge stations not require a stop.
@@ -135,9 +141,6 @@ It's possible to get redirected to wrong URL without the /server
 Make players able to leave the game at any time
 Make players able to reset their turn to the last irreversible step (a roll or reveal)
 Show who's a part of (and playing what character and possibly has what score) each game in the game list + date started
-Make a SFX to notify you when it's your turn
-Make ice beam freeze for longer
-Copy the fix for the start-of-turn 'frozen' state check to the 'isStunned' code and update the version (so existing games don't break)
 
 Later:
 Make an instruction manual
