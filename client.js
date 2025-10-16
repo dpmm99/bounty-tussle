@@ -205,8 +205,8 @@ function syncFromServer(data) {
     if (Object.keys(data).length) g.boardGraphics.drawToCanvas(g, canvas, optionsCanvas, playersCanvas);
 
     //If it's this client's turn or they're being give the option to reject/accept a request or whatever, play a sound to let this client know. Just don't bleep at 'em every after every move if it's *still* their turn.
-    if ((roundManager.currentTurnPlayer.tokenId == authenticatedPlayerIdInGame && !wasMyTurn) || roundManager.currentOptions.some(p => p.forPlayer?.tokenId == authenticatedPlayerIdInGame)) playActionRequestAudio();
-    wasMyTurn = roundManager.currentTurnPlayer.tokenId == authenticatedPlayerIdInGame;
+    if ((roundManager.currentTurnPlayer?.tokenId == authenticatedPlayerIdInGame && !wasMyTurn) || roundManager.currentOptions.some(p => p.forPlayer?.tokenId == authenticatedPlayerIdInGame)) playActionRequestAudio();
+    wasMyTurn = roundManager.currentTurnPlayer?.tokenId == authenticatedPlayerIdInGame;
 }
 
 function playActionRequestAudio() {

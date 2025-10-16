@@ -2,7 +2,7 @@ const main = require('./main.js');
 const db = require('./db.js');
 const seedrandom = require("seedrandom");
 const crypto = require('crypto'); //Only used for the auth
-const fetch = require('node-fetch'); //Only used for the auth
+const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args)); //Only used for the auth
 
 const cachedGames = [];
 
@@ -239,7 +239,7 @@ async function redirectIfNotLoggedIn(cookies, urlObject, res, player, redirectTo
 		res.setHeader('Set-Cookie', cookiesToSet);
 
 		if (redirectToLoginIfNot) { //Not logged in--possibly because they had no cookie, but possibly not. Either way, no full response!
-			const loginUrl = urlObject.pathname.substr(0, urlObject.pathname.lastIndexOf("/")) + "/login";
+			const loginUrl = urlObject.pathname.substring(0, urlObject.pathname.lastIndexOf("/")) + "/login";
 			if (redirectAsJson) {
 				res.statusCode = 200;
 				res.end(JSON.stringify({ redirectTo: loginUrl }));
@@ -311,7 +311,7 @@ function parseCookies(request) {
 
 async function playerSearch(urlObject) {
 	let name = urlObject.searchParams.get("name");
-	if (name) name = name.replace(/[^a-z#]/gi, "").substr(0, 37); //Drop disallowed characters before checking if we should avoid searching. The 37 is the 32 max Discord username length + "#" + discriminator length (4, all digits)
+	if (name) name = name.replace(/[^a-z#]/gi, "").substring(0, 37); //Drop disallowed characters before checking if we should avoid searching. The 37 is the 32 max Discord username length + "#" + discriminator length (4, all digits)
 	if (!name) return [];
 
 	//Respond with [{name,id}, ...] where name includes the Discord username plus # plus discriminator
@@ -437,7 +437,7 @@ async function startServer() {
 					if (lowercasePath.endsWith("/index.html") && !cookies?.sessionID) redirectIfNotLoggedIn(cookies, urlObject, res, player, false, false); //Also create a session and set a session cookie if they're going to the landing page and don't have one
 
 					//Just send the file (but only files in the exact same directory as the server files, no subdirectories or anything--except .png comes from /img)
-					const filename = urlObject.pathname.substr(urlObject.pathname.lastIndexOf("/") + 1);
+					const filename = urlObject.pathname.substring(urlObject.pathname.lastIndexOf("/") + 1);
 					res.statusCode = 200;
 					res.setHeader("Content-Type", lowercasePath.endsWith(".html") ? "text/html" : lowercasePath.endsWith(".js") ? "application/javascript" : lowercasePath.endsWith(".png") ? "image/png" : lowercasePath.endsWith(".ico") ? "image/x-icon" : lowercasePath.endsWith(".css") ? "text/css" : lowercasePath.endsWith(".mp3") ? "audio/mpeg" : "application/octet-stream");
 					const fs = require('fs');
